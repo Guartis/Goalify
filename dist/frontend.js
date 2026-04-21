@@ -285,7 +285,7 @@ function setup(ctx) {
   const dot = document.createElement("span");
   dot.className = "dot";
   const bannerText = document.createElement("span");
-  bannerText.textContent = "Council Inactive";
+  bannerText.textContent = "Sidecar LLM Inactive";
   banner.appendChild(dot);
   banner.appendChild(bannerText);
   root.appendChild(banner);
@@ -294,17 +294,17 @@ function setup(ctx) {
   root.appendChild(gated);
   function setCouncil(active) {
     banner.classList.toggle("active", active);
-    bannerText.textContent = active ? "Council Active" : "Council Inactive";
+    bannerText.textContent = active ? "Sidecar LLM Active" : "Sidecar LLM Inactive";
     gated.classList.toggle("inactive", !active);
   }
   ctx.events.on("SETTINGS_UPDATED", (payload) => {
-    if (payload?.key === "councilMode") {
-      setCouncil(!!payload.value);
+    if (payload?.key === "sidecarSettings") {
+      setCouncil(!!payload.value?.connectionProfileId);
     }
   });
   function fetchCouncilStatus() {
     fetch("/api/v1/settings").then((r) => r.json()).then((settings) => {
-      setCouncil(!!settings?.councilMode);
+      setCouncil(!!settings?.sidecarSettings?.connectionProfileId);
     }).catch(() => {});
   }
   fetchCouncilStatus();

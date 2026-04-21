@@ -292,7 +292,7 @@ export function setup(ctx: SpindleFrontendContext) {
   const banner = document.createElement('div')
   banner.className = 'gobj-council-status'
   const dot = document.createElement('span'); dot.className = 'dot'
-  const bannerText = document.createElement('span'); bannerText.textContent = 'Council Inactive'
+  const bannerText = document.createElement('span'); bannerText.textContent = 'Sidecar LLM Inactive'
   banner.appendChild(dot)
   banner.appendChild(bannerText)
   root.appendChild(banner)
@@ -304,15 +304,15 @@ export function setup(ctx: SpindleFrontendContext) {
 
   function setCouncil(active: boolean) {
     banner.classList.toggle('active', active)
-    bannerText.textContent = active ? 'Council Active' : 'Council Inactive'
+    bannerText.textContent = active ? 'Sidecar LLM Active' : 'Sidecar LLM Inactive'
     gated.classList.toggle('inactive', !active)
   }
 
-  // ── Council status: listen for settings changes ────────────────────────────
-  // Key is 'councilMode' per Lumiverse source (src/macros/definitions/lumia.ts)
+  // ── Sidecar LLM status ─────────────────────────────────────────────────────
+  // Active when sidecarSettings.connectionProfileId is set
   ctx.events.on('SETTINGS_UPDATED', (payload: any) => {
-    if (payload?.key === 'councilMode') {
-      setCouncil(!!payload.value)
+    if (payload?.key === 'sidecarSettings') {
+      setCouncil(!!payload.value?.connectionProfileId)
     }
   })
 
@@ -320,8 +320,7 @@ export function setup(ctx: SpindleFrontendContext) {
     fetch('/api/v1/settings')
       .then(r => r.json())
       .then((settings: any) => {
-        // councilMode is the authoritative flag per Lumiverse source
-        setCouncil(!!settings?.councilMode)
+        setCouncil(!!settings?.sidecarSettings?.connectionProfileId)
       })
       .catch(() => { /* leave inactive */ })
   }
