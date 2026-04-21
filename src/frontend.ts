@@ -1,8 +1,18 @@
 import type { SpindleFrontendContext } from 'lumiverse-spindle-types'
 
+// ── Shared types ───────────────────────────────────────────────────────────────
+interface Item { text: string; done: boolean }
+interface GobjState {
+  goals:             Item[]
+  objectives:        Item[]
+  goalInterval:      number
+  objectiveInterval: number
+  selectedMemberId:  string
+}
+
 export function setup(ctx: SpindleFrontendContext) {
 
-  // ── Register drawer tab ────────────────────────────────────────────────────
+  // ── Register drawer tab ──────────────────────────────────────────────────────
   const tab = ctx.ui.registerDrawerTab({
     id: 'goals-tab',
     title: 'Goals & Objectives',
@@ -17,7 +27,7 @@ export function setup(ctx: SpindleFrontendContext) {
     </svg>`,
   })
 
-  // ── Styles ─────────────────────────────────────────────────────────────────
+  // ── Styles ───────────────────────────────────────────────────────────────────
   const style = document.createElement('style')
   style.textContent = `
     .gobj-root {
@@ -31,20 +41,12 @@ export function setup(ctx: SpindleFrontendContext) {
       font-family: inherit;
     }
 
-    .gobj-gated {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      transition: opacity 0.3s;
-    }
-    .gobj-gated.inactive {
-      opacity: 0.35;
-      pointer-events: none;
-    }
-
     .gobj-section { display: flex; flex-direction: column; gap: 8px; }
 
     .gobj-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.08em;
@@ -85,7 +87,7 @@ export function setup(ctx: SpindleFrontendContext) {
       display: flex;
       flex-direction: column;
       gap: 5px;
-      max-height: 150px;
+      max-height: 165px;
       overflow-y: auto;
     }
     .gobj-list::-webkit-scrollbar { width: 4px; }
@@ -97,19 +99,48 @@ export function setup(ctx: SpindleFrontendContext) {
     .gobj-item {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 8px;
-      padding: 7px 10px;
+      padding: 6px 10px;
       background: var(--lumiverse-fill-subtle, #1a1a1a);
       border: 1px solid var(--lumiverse-border, #2e2e2e);
       border-radius: var(--lumiverse-radius, 6px);
       font-size: 13px;
       color: var(--lumiverse-text, #eee);
       animation: gobj-in 0.15s ease;
+      transition: border-color 0.2s, opacity 0.2s;
+    }
+    .gobj-item.done {
+      opacity: 0.5;
+      border-color: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 25%, var(--lumiverse-border, #2e2e2e));
     }
     @keyframes gobj-in {
       from { opacity: 0; transform: translateY(-4px); }
       to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .gobj-check {
+      flex-shrink: 0;
+      width: 15px; height: 15px;
+      appearance: none; -webkit-appearance: none;
+      border: 1.5px solid var(--lumiverse-border, #555);
+      border-radius: 3px;
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .gobj-check:checked {
+      background: var(--lumiverse-accent, #7c6ff7);
+      border-color: var(--lumiverse-accent, #7c6ff7);
+    }
+    .gobj-check:checked::after {
+      content: '';
+      position: absolute;
+      left: 3px; top: 0px;
+      width: 5px; height: 8px;
+      border: 2px solid #fff;
+      border-top: none; border-left: none;
+      transform: rotate(45deg);
     }
 
     .gobj-item-text {
@@ -117,6 +148,10 @@ export function setup(ctx: SpindleFrontendContext) {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .gobj-item.done .gobj-item-text {
+      text-decoration: line-through;
+      color: var(--lumiverse-text-dim, #666);
     }
 
     .gobj-remove-btn {
@@ -139,7 +174,37 @@ export function setup(ctx: SpindleFrontendContext) {
       padding: 2px;
     }
 
+    .gobj-lock-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #f87171;
+      background: rgba(248,113,113,0.10);
+      border: 1px solid rgba(248,113,113,0.25);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+    .gobj-lock-badge.hidden { display: none; }
+
     .gobj-divider { height: 1px; background: var(--lumiverse-border, #2e2e2e); }
+
+    /* ── Member selector ── */
+    .gobj-member-wrap { display: flex; flex-direction: column; gap: 8px; }
+
+    .gobj-select {
+      width: 100%;
+      padding: 7px 10px;
+      font-size: 13px;
+      background: var(--lumiverse-fill-subtle, #1a1a1a);
+      border: 1px solid var(--lumiverse-border, #333);
+      border-radius: var(--lumiverse-radius, 6px);
+      color: var(--lumiverse-text, #eee);
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .gobj-select:focus { border-color: var(--lumiverse-accent, #7c6ff7); }
+    .gobj-select.placeholder { color: var(--lumiverse-text-dim, #666); }
 
     /* ── Spinner ── */
     .gobj-spinner-wrap { display: flex; flex-direction: column; gap: 6px; }
@@ -149,14 +214,10 @@ export function setup(ctx: SpindleFrontendContext) {
       color: var(--lumiverse-text-dim, #888);
       line-height: 1.4;
     }
-    .gobj-spinner-label span {
-      color: var(--lumiverse-accent, #7c6ff7);
-      font-weight: 600;
-    }
+    .gobj-spinner-label span { color: var(--lumiverse-accent, #7c6ff7); font-weight: 600; }
 
     .gobj-spinner-row { display: flex; align-items: center; gap: 6px; }
 
-    /* Arrows outside, LEFT of the input box */
     .gobj-arrow-col {
       display: flex;
       flex-direction: column;
@@ -190,8 +251,6 @@ export function setup(ctx: SpindleFrontendContext) {
       border-radius: var(--lumiverse-radius, 6px);
       overflow: hidden;
     }
-
-    /* Kill ALL native number arrows */
     .gobj-spinner-num {
       flex: 1;
       padding: 7px 10px;
@@ -225,22 +284,16 @@ export function setup(ctx: SpindleFrontendContext) {
       justify-content: space-between;
     }
 
-    .gobj-select {
-      padding: 5px 8px;
-      font-size: 12px;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: 1px solid var(--lumiverse-border, #333);
-      border-radius: var(--lumiverse-radius, 6px);
-      color: var(--lumiverse-text, #eee);
-      outline: none;
-      cursor: pointer;
-      max-width: 160px;
-      transition: border-color 0.15s;
+    .gobj-thinking-status {
+      font-size: 11px;
+      color: var(--lumiverse-text-dim, #555);
+      font-style: italic;
     }
-    .gobj-select:focus { border-color: var(--lumiverse-accent, #7c6ff7); }
+    .gobj-thinking-status.thinking { color: var(--lumiverse-accent, #7c6ff7); }
+    .gobj-thinking-status.error    { color: #f87171; }
 
     .gobj-thinking-box {
-      min-height: 140px;
+      min-height: 90px;
       padding: 10px 12px;
       background: var(--lumiverse-fill-subtle, #1a1a1a);
       border: 1px solid var(--lumiverse-border, #2e2e2e);
@@ -248,92 +301,69 @@ export function setup(ctx: SpindleFrontendContext) {
       color: var(--lumiverse-text-dim, #555);
       font-size: 13px;
       font-style: italic;
-      user-select: none;
-      cursor: default;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+      transition: border-color 0.3s, color 0.2s;
     }
-
-    /* ── Council status banner ── */
-    .gobj-council-status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 10px;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: 1px solid var(--lumiverse-border, #2e2e2e);
-      border-radius: var(--lumiverse-radius, 6px);
-      font-size: 12px;
-      color: var(--lumiverse-text-dim, #777);
-      transition: border-color 0.3s, color 0.3s;
-    }
-    .gobj-council-status .dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--lumiverse-text-dim, #444);
-      flex-shrink: 0;
-      transition: background 0.3s, box-shadow 0.3s;
-    }
-    .gobj-council-status.active {
-      color: var(--lumiverse-text, #ddd);
-      border-color: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 50%, var(--lumiverse-border, #333));
-    }
-    .gobj-council-status.active .dot {
-      background: var(--lumiverse-accent, #7c6ff7);
-      box-shadow: 0 0 7px 2px color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 55%, transparent);
+    .gobj-thinking-box.has-content {
+      color: var(--lumiverse-text, #eee);
+      font-style: normal;
+      border-color: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 30%, var(--lumiverse-border, #2e2e2e));
     }
   `
   tab.root.appendChild(style)
 
-  // ── Root ───────────────────────────────────────────────────────────────────
+  // ── Root ─────────────────────────────────────────────────────────────────────
   const root = document.createElement('div')
   root.className = 'gobj-root'
   tab.root.appendChild(root)
 
-  // ── Council status banner (top, always visible) ────────────────────────────
-  const banner = document.createElement('div')
-  banner.className = 'gobj-council-status'
-  const dot = document.createElement('span'); dot.className = 'dot'
-  const bannerText = document.createElement('span'); bannerText.textContent = 'Sidecar LLM Inactive'
-  banner.appendChild(dot)
-  banner.appendChild(bannerText)
-  root.appendChild(banner)
+  // ── Local state ───────────────────────────────────────────────────────────────
+  const goals:      Item[] = []
+  const objectives: Item[] = []
+  let goalInterval      = 0
+  let objectiveInterval = 0
+  let selectedMemberId  = ''
 
-  // Gated section — greyed when council inactive
-  const gated = document.createElement('div')
-  gated.className = 'gobj-gated inactive'
-  root.appendChild(gated)
+  // UI refs updated from outside their builders
+  let goalLockBadge:    HTMLSpanElement | null = null
+  let thinkingBoxEl:    HTMLDivElement  | null = null
+  let thinkingStatusEl: HTMLSpanElement | null = null
 
-  function setCouncil(active: boolean) {
-    banner.classList.toggle('active', active)
-    bannerText.textContent = active ? 'Sidecar LLM Active' : 'Sidecar LLM Inactive'
-    gated.classList.toggle('inactive', !active)
-  }
-
-  // ── Sidecar LLM status ─────────────────────────────────────────────────────
-  // Active when sidecarSettings.connectionProfileId is set
-  ctx.events.on('SETTINGS_UPDATED', (payload: any) => {
-    if (payload?.key === 'sidecarSettings') {
-      setCouncil(!!payload.value?.connectionProfileId)
+  // ── emitState — send full snapshot to backend on every change ────────────────
+  function emitState() {
+    const state: GobjState = {
+      goals:            goals.map(i => ({ ...i })),
+      objectives:       objectives.map(i => ({ ...i })),
+      goalInterval,
+      objectiveInterval,
+      selectedMemberId,
     }
-  })
-
-  function fetchCouncilStatus() {
-    fetch('/api/v1/settings')
-      .then(r => r.json())
-      .then((settings: any) => {
-        setCouncil(!!settings?.sidecarSettings?.connectionProfileId)
-      })
-      .catch(() => { /* leave inactive */ })
+    ctx.sendToBackend({ type: 'gobj_state', state })
   }
-  fetchCouncilStatus()
 
-  // ── List section ───────────────────────────────────────────────────────────
-  function buildListSection(labelText: string, placeholder: string): HTMLElement {
+  // ── updateGoalLock ────────────────────────────────────────────────────────────
+  function updateGoalLock() {
+    if (!goalLockBadge) return
+    const locked = objectives.length > 0 && !objectives.every(o => o.done)
+    goalLockBadge.classList.toggle('hidden', !locked)
+  }
+
+  // ── buildListSection ──────────────────────────────────────────────────────────
+  function buildListSection(
+    labelText:   string,
+    placeholder: string,
+    items:       Item[],
+    extraLabel?: () => HTMLElement
+  ): HTMLElement {
     const section = document.createElement('div')
     section.className = 'gobj-section'
 
-    const label = document.createElement('div')
-    label.className = 'gobj-label'
-    label.textContent = labelText
+    const labelRow = document.createElement('div')
+    labelRow.className = 'gobj-label'
+    labelRow.textContent = labelText
+    if (extraLabel) labelRow.appendChild(extraLabel())
 
     const row = document.createElement('div')
     row.className = 'gobj-input-row'
@@ -356,40 +386,72 @@ export function setup(ctx: SpindleFrontendContext) {
     const emptyEl = document.createElement('div')
     emptyEl.className = 'gobj-empty'
     emptyEl.textContent = 'None added yet.'
-    list.appendChild(emptyEl)
-
-    const items: string[] = []
 
     function render() {
       list.innerHTML = ''
       if (items.length === 0) { list.appendChild(emptyEl); return }
-      items.forEach((text, i) => {
-        const item = document.createElement('div')
-        item.className = 'gobj-item'
+      items.forEach((item, i) => {
+        const el = document.createElement('div')
+        el.className = 'gobj-item' + (item.done ? ' done' : '')
+
+        const chk = document.createElement('input')
+        chk.type = 'checkbox'
+        chk.className = 'gobj-check'
+        chk.checked = item.done
+        chk.addEventListener('change', () => {
+          item.done = chk.checked
+          el.classList.toggle('done', item.done)
+          updateGoalLock()
+          emitState()
+        })
+
         const span = document.createElement('span')
         span.className = 'gobj-item-text'
-        span.textContent = text; span.title = text
+        span.textContent = item.text
+        span.title = item.text
+
         const rm = document.createElement('button')
-        rm.className = 'gobj-remove-btn'; rm.textContent = '×'
-        rm.addEventListener('click', () => { items.splice(i, 1); render() })
-        item.appendChild(span); item.appendChild(rm)
-        list.appendChild(item)
+        rm.className = 'gobj-remove-btn'
+        rm.textContent = '×'
+        rm.addEventListener('click', () => {
+          items.splice(i, 1)
+          render()
+          updateGoalLock()
+          emitState()
+        })
+
+        el.appendChild(chk)
+        el.appendChild(span)
+        el.appendChild(rm)
+        list.appendChild(el)
       })
     }
 
     function add() {
-      const v = input.value.trim(); if (!v) return
-      items.push(v); input.value = ''; render()
+      const v = input.value.trim()
+      if (!v) return
+      items.push({ text: v, done: false })
+      input.value = ''
+      render()
+      updateGoalLock()
+      emitState()
     }
 
     addBtn.addEventListener('click', add)
     input.addEventListener('keydown', e => { if (e.key === 'Enter') add() })
-    section.appendChild(label); section.appendChild(row); section.appendChild(list)
+
+    section.appendChild(labelRow)
+    section.appendChild(row)
+    section.appendChild(list)
+    render()
     return section
   }
 
-  // ── Spinner ────────────────────────────────────────────────────────────────
-  function buildSpinner(labelFn: (n: number) => string): HTMLElement {
+  // ── buildSpinner ──────────────────────────────────────────────────────────────
+  function buildSpinner(
+    labelFn:  (n: number) => string,
+    onChange: (n: number) => void
+  ): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'gobj-spinner-wrap'
 
@@ -399,23 +461,22 @@ export function setup(ctx: SpindleFrontendContext) {
     const spinRow = document.createElement('div')
     spinRow.className = 'gobj-spinner-row'
 
-    // Arrows — outside, left
     const arrowCol = document.createElement('div')
     arrowCol.className = 'gobj-arrow-col'
-    const upBtn = document.createElement('button')
+    const upBtn   = document.createElement('button')
     upBtn.className = 'gobj-arrow'; upBtn.textContent = '▲'
     const downBtn = document.createElement('button')
     downBtn.className = 'gobj-arrow'; downBtn.textContent = '▼'
     arrowCol.appendChild(upBtn); arrowCol.appendChild(downBtn)
 
-    // Input box
     const box = document.createElement('div')
     box.className = 'gobj-spinner-box'
     const numInput = document.createElement('input')
     numInput.className = 'gobj-spinner-num'
     numInput.type = 'number'; numInput.value = '0'; numInput.min = '0'
     const disabledTag = document.createElement('span')
-    disabledTag.className = 'gobj-disabled-tag'; disabledTag.textContent = 'Disabled'
+    disabledTag.className = 'gobj-disabled-tag'
+    disabledTag.textContent = 'Disabled'
     box.appendChild(numInput); box.appendChild(disabledTag)
 
     spinRow.appendChild(arrowCol); spinRow.appendChild(box)
@@ -426,18 +487,57 @@ export function setup(ctx: SpindleFrontendContext) {
       numInput.value = String(v)
       disabledTag.style.opacity = v === 0 ? '1' : '0'
       labelEl.innerHTML = labelFn(v)
+      onChange(v)
+      emitState()
     }
 
-    upBtn.addEventListener('click', () => { numInput.value = String((parseInt(numInput.value) || 0) + 1); update() })
-    downBtn.addEventListener('click', () => { numInput.value = String((parseInt(numInput.value) || 0) - 1); update() })
+    upBtn.addEventListener('click',   () => { numInput.value = String((parseInt(numInput.value) || 0) + 1); update() })
+    downBtn.addEventListener('click', () => { numInput.value = String(Math.max(0, (parseInt(numInput.value) || 0) - 1)); update() })
     numInput.addEventListener('input', update)
     update()
 
-    wrap.appendChild(labelEl); wrap.appendChild(spinRow)
+    wrap.appendChild(labelEl)
+    wrap.appendChild(spinRow)
     return wrap
   }
 
-  // ── Thinking box ───────────────────────────────────────────────────────────
+  // ── buildMemberSelector ───────────────────────────────────────────────────────
+  function buildMemberSelector(): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'gobj-member-wrap'
+
+    const label = document.createElement('div')
+    label.className = 'gobj-label'
+    label.textContent = 'Council Member'
+
+    const select = document.createElement('select')
+    select.className = 'gobj-select placeholder'
+
+    const placeholder = document.createElement('option')
+    placeholder.value = ''; placeholder.textContent = 'Loading characters…'
+    placeholder.disabled = true; placeholder.selected = true
+    select.appendChild(placeholder)
+
+    select.addEventListener('change', () => {
+      selectedMemberId = select.value
+      select.classList.toggle('placeholder', !selectedMemberId)
+      emitState()
+    })
+
+    // Request character list from backend
+    ctx.sendToBackend({ type: 'get_members' })
+
+    wrap.appendChild(label)
+    wrap.appendChild(select)
+
+    // Store ref so onBackendMessage can populate it
+    ;(wrap as any)._select = select
+    ;(wrap as any)._placeholder = placeholder
+
+    return wrap
+  }
+
+  // ── buildThinkingBox ──────────────────────────────────────────────────────────
   function buildThinkingBox(): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'gobj-thinking-wrap'
@@ -446,54 +546,122 @@ export function setup(ctx: SpindleFrontendContext) {
     header.className = 'gobj-thinking-header'
 
     const label = document.createElement('div')
-    label.className = 'gobj-label'; label.textContent = 'Thinking'
+    label.className = 'gobj-label'
+    label.textContent = 'Director'
 
-    const select = document.createElement('select')
-    select.className = 'gobj-select'
+    const statusEl = document.createElement('span')
+    statusEl.className = 'gobj-thinking-status'
+    statusEl.textContent = 'idle'
+    thinkingStatusEl = statusEl
 
-    // TODO: populate with real council members from backend when implemented
-    const members = ['Select member...', 'Member 1', 'Member 2', 'Member 3']
-    members.forEach((name, i) => {
-      const opt = document.createElement('option')
-      opt.value = i === 0 ? '' : String(i)
-      opt.textContent = name
-      if (i === 0) { opt.disabled = true; opt.selected = true }
-      select.appendChild(opt)
-    })
-
-    header.appendChild(label); header.appendChild(select)
+    header.appendChild(label)
+    header.appendChild(statusEl)
 
     const box = document.createElement('div')
     box.className = 'gobj-thinking-box'
-    box.textContent = 'Thinking output will appear here...'
+    box.textContent = 'Output will appear here after the first trigger…'
+    thinkingBoxEl = box
 
-    wrap.appendChild(header); wrap.appendChild(box)
+    wrap.appendChild(header)
+    wrap.appendChild(box)
     return wrap
   }
 
-  // ── Assemble ───────────────────────────────────────────────────────────────
-  gated.appendChild(buildListSection('Goals', 'Add a goal...'))
+  // ── Listen for messages from backend ─────────────────────────────────────────
+  let memberSelectEl: HTMLSelectElement | null  = null
+  let memberPlaceholderEl: HTMLOptionElement | null = null
 
-  const d1 = document.createElement('div'); d1.className = 'gobj-divider'; gated.appendChild(d1)
+  const unsubBackend = ctx.onBackendMessage((payload: any) => {
+    switch (payload.type) {
 
-  gated.appendChild(buildListSection('Objectives', 'Add an objective...'))
+      // Populate the member selector with characters from backend
+      case 'members': {
+        if (!memberSelectEl || !memberPlaceholderEl) return
+        const members: Array<{ id: string; name: string }> = payload.members ?? []
+        memberPlaceholderEl.textContent = members.length ? 'Select a character…' : 'No characters found'
+        members.forEach(m => {
+          const opt = document.createElement('option')
+          opt.value = m.id
+          opt.textContent = m.name
+          memberSelectEl!.appendChild(opt)
+        })
+        break
+      }
 
-  const d2 = document.createElement('div'); d2.className = 'gobj-divider'; gated.appendChild(d2)
+      // Thinking status update from backend
+      case 'gobj_thinking': {
+        if (!thinkingBoxEl || !thinkingStatusEl) return
+        switch (payload.status) {
+          case 'thinking':
+            thinkingBoxEl.textContent = 'Analyzing…'
+            thinkingBoxEl.className = 'gobj-thinking-box'
+            thinkingStatusEl.textContent = 'thinking'
+            thinkingStatusEl.className = 'gobj-thinking-status thinking'
+            break
+          case 'done':
+            thinkingBoxEl.textContent = payload.text ?? ''
+            thinkingBoxEl.className = 'gobj-thinking-box' + (payload.text ? ' has-content' : '')
+            thinkingStatusEl.textContent = 'done'
+            thinkingStatusEl.className = 'gobj-thinking-status'
+            break
+          case 'error':
+            thinkingBoxEl.textContent = payload.text ?? 'Error.'
+            thinkingBoxEl.className = 'gobj-thinking-box'
+            thinkingStatusEl.textContent = 'error'
+            thinkingStatusEl.className = 'gobj-thinking-status error'
+            break
+        }
+        break
+      }
+    }
+  })
 
-  gated.appendChild(
-    buildSpinner(n => n === 0
+  // ── Assemble UI ───────────────────────────────────────────────────────────────
+  const div = (cls: string) => Object.assign(document.createElement('div'), { className: cls })
+
+  // Member selector — grab refs for population
+  const memberWrap = buildMemberSelector()
+  memberSelectEl      = (memberWrap as any)._select      as HTMLSelectElement
+  memberPlaceholderEl = (memberWrap as any)._placeholder as HTMLOptionElement
+  root.appendChild(memberWrap)
+
+  root.appendChild(div('gobj-divider'))
+
+  // Goals — with lock badge
+  const lockBadge = document.createElement('span')
+  lockBadge.className = 'gobj-lock-badge hidden'
+  lockBadge.title = 'All objectives must be completed first'
+  lockBadge.textContent = '🔒 locked'
+  goalLockBadge = lockBadge
+
+  root.appendChild(buildListSection('Goals', 'Add a goal…', goals, () => lockBadge))
+
+  root.appendChild(div('gobj-divider'))
+
+  root.appendChild(buildListSection('Objectives', 'Add an objective…', objectives))
+
+  root.appendChild(div('gobj-divider'))
+
+  root.appendChild(buildSpinner(
+    n => n === 0
       ? 'Injecting <span>Goals</span> — Disabled'
-      : `Injecting <span>Goals</span> every <span>${n}</span> call${n === 1 ? '' : 's'}`)
-  )
-  gated.appendChild(
-    buildSpinner(n => n === 0
+      : `Injecting <span>Goals</span> every <span>${n}</span> call${n === 1 ? '' : 's'}`,
+    n => { goalInterval = n }
+  ))
+
+  root.appendChild(buildSpinner(
+    n => n === 0
       ? 'Injecting <span>Objectives</span> — Disabled'
-      : `Injecting <span>Objectives</span> every <span>${n}</span> call${n === 1 ? '' : 's'}`)
-  )
+      : `Injecting <span>Objectives</span> every <span>${n}</span> call${n === 1 ? '' : 's'}`,
+    n => { objectiveInterval = n }
+  ))
 
-  const d3 = document.createElement('div'); d3.className = 'gobj-divider'; gated.appendChild(d3)
+  root.appendChild(div('gobj-divider'))
 
-  gated.appendChild(buildThinkingBox())
+  root.appendChild(buildThinkingBox())
 
-  return () => { tab.destroy() }
+  return () => {
+    unsubBackend()
+    tab.destroy()
+  }
 }

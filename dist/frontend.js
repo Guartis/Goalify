@@ -26,20 +26,12 @@ function setup(ctx) {
       font-family: inherit;
     }
 
-    .gobj-gated {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      transition: opacity 0.3s;
-    }
-    .gobj-gated.inactive {
-      opacity: 0.35;
-      pointer-events: none;
-    }
-
     .gobj-section { display: flex; flex-direction: column; gap: 8px; }
 
     .gobj-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.08em;
@@ -80,7 +72,7 @@ function setup(ctx) {
       display: flex;
       flex-direction: column;
       gap: 5px;
-      max-height: 150px;
+      max-height: 165px;
       overflow-y: auto;
     }
     .gobj-list::-webkit-scrollbar { width: 4px; }
@@ -92,19 +84,48 @@ function setup(ctx) {
     .gobj-item {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 8px;
-      padding: 7px 10px;
+      padding: 6px 10px;
       background: var(--lumiverse-fill-subtle, #1a1a1a);
       border: 1px solid var(--lumiverse-border, #2e2e2e);
       border-radius: var(--lumiverse-radius, 6px);
       font-size: 13px;
       color: var(--lumiverse-text, #eee);
       animation: gobj-in 0.15s ease;
+      transition: border-color 0.2s, opacity 0.2s;
+    }
+    .gobj-item.done {
+      opacity: 0.5;
+      border-color: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 25%, var(--lumiverse-border, #2e2e2e));
     }
     @keyframes gobj-in {
       from { opacity: 0; transform: translateY(-4px); }
       to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .gobj-check {
+      flex-shrink: 0;
+      width: 15px; height: 15px;
+      appearance: none; -webkit-appearance: none;
+      border: 1.5px solid var(--lumiverse-border, #555);
+      border-radius: 3px;
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .gobj-check:checked {
+      background: var(--lumiverse-accent, #7c6ff7);
+      border-color: var(--lumiverse-accent, #7c6ff7);
+    }
+    .gobj-check:checked::after {
+      content: '';
+      position: absolute;
+      left: 3px; top: 0px;
+      width: 5px; height: 8px;
+      border: 2px solid #fff;
+      border-top: none; border-left: none;
+      transform: rotate(45deg);
     }
 
     .gobj-item-text {
@@ -112,6 +133,10 @@ function setup(ctx) {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .gobj-item.done .gobj-item-text {
+      text-decoration: line-through;
+      color: var(--lumiverse-text-dim, #666);
     }
 
     .gobj-remove-btn {
@@ -134,7 +159,37 @@ function setup(ctx) {
       padding: 2px;
     }
 
+    .gobj-lock-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #f87171;
+      background: rgba(248,113,113,0.10);
+      border: 1px solid rgba(248,113,113,0.25);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+    .gobj-lock-badge.hidden { display: none; }
+
     .gobj-divider { height: 1px; background: var(--lumiverse-border, #2e2e2e); }
+
+    /* ── Member selector ── */
+    .gobj-member-wrap { display: flex; flex-direction: column; gap: 8px; }
+
+    .gobj-select {
+      width: 100%;
+      padding: 7px 10px;
+      font-size: 13px;
+      background: var(--lumiverse-fill-subtle, #1a1a1a);
+      border: 1px solid var(--lumiverse-border, #333);
+      border-radius: var(--lumiverse-radius, 6px);
+      color: var(--lumiverse-text, #eee);
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .gobj-select:focus { border-color: var(--lumiverse-accent, #7c6ff7); }
+    .gobj-select.placeholder { color: var(--lumiverse-text-dim, #666); }
 
     /* ── Spinner ── */
     .gobj-spinner-wrap { display: flex; flex-direction: column; gap: 6px; }
@@ -144,14 +199,10 @@ function setup(ctx) {
       color: var(--lumiverse-text-dim, #888);
       line-height: 1.4;
     }
-    .gobj-spinner-label span {
-      color: var(--lumiverse-accent, #7c6ff7);
-      font-weight: 600;
-    }
+    .gobj-spinner-label span { color: var(--lumiverse-accent, #7c6ff7); font-weight: 600; }
 
     .gobj-spinner-row { display: flex; align-items: center; gap: 6px; }
 
-    /* Arrows outside, LEFT of the input box */
     .gobj-arrow-col {
       display: flex;
       flex-direction: column;
@@ -185,8 +236,6 @@ function setup(ctx) {
       border-radius: var(--lumiverse-radius, 6px);
       overflow: hidden;
     }
-
-    /* Kill ALL native number arrows */
     .gobj-spinner-num {
       flex: 1;
       padding: 7px 10px;
@@ -220,22 +269,16 @@ function setup(ctx) {
       justify-content: space-between;
     }
 
-    .gobj-select {
-      padding: 5px 8px;
-      font-size: 12px;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: 1px solid var(--lumiverse-border, #333);
-      border-radius: var(--lumiverse-radius, 6px);
-      color: var(--lumiverse-text, #eee);
-      outline: none;
-      cursor: pointer;
-      max-width: 160px;
-      transition: border-color 0.15s;
+    .gobj-thinking-status {
+      font-size: 11px;
+      color: var(--lumiverse-text-dim, #555);
+      font-style: italic;
     }
-    .gobj-select:focus { border-color: var(--lumiverse-accent, #7c6ff7); }
+    .gobj-thinking-status.thinking { color: var(--lumiverse-accent, #7c6ff7); }
+    .gobj-thinking-status.error    { color: #f87171; }
 
     .gobj-thinking-box {
-      min-height: 140px;
+      min-height: 90px;
       padding: 10px 12px;
       background: var(--lumiverse-fill-subtle, #1a1a1a);
       border: 1px solid var(--lumiverse-border, #2e2e2e);
@@ -243,77 +286,53 @@ function setup(ctx) {
       color: var(--lumiverse-text-dim, #555);
       font-size: 13px;
       font-style: italic;
-      user-select: none;
-      cursor: default;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+      transition: border-color 0.3s, color 0.2s;
     }
-
-    /* ── Council status banner ── */
-    .gobj-council-status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 10px;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: 1px solid var(--lumiverse-border, #2e2e2e);
-      border-radius: var(--lumiverse-radius, 6px);
-      font-size: 12px;
-      color: var(--lumiverse-text-dim, #777);
-      transition: border-color 0.3s, color 0.3s;
-    }
-    .gobj-council-status .dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--lumiverse-text-dim, #444);
-      flex-shrink: 0;
-      transition: background 0.3s, box-shadow 0.3s;
-    }
-    .gobj-council-status.active {
-      color: var(--lumiverse-text, #ddd);
-      border-color: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 50%, var(--lumiverse-border, #333));
-    }
-    .gobj-council-status.active .dot {
-      background: var(--lumiverse-accent, #7c6ff7);
-      box-shadow: 0 0 7px 2px color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 55%, transparent);
+    .gobj-thinking-box.has-content {
+      color: var(--lumiverse-text, #eee);
+      font-style: normal;
+      border-color: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 30%, var(--lumiverse-border, #2e2e2e));
     }
   `;
   tab.root.appendChild(style);
   const root = document.createElement("div");
   root.className = "gobj-root";
   tab.root.appendChild(root);
-  const banner = document.createElement("div");
-  banner.className = "gobj-council-status";
-  const dot = document.createElement("span");
-  dot.className = "dot";
-  const bannerText = document.createElement("span");
-  bannerText.textContent = "Sidecar LLM Inactive";
-  banner.appendChild(dot);
-  banner.appendChild(bannerText);
-  root.appendChild(banner);
-  const gated = document.createElement("div");
-  gated.className = "gobj-gated inactive";
-  root.appendChild(gated);
-  function setCouncil(active) {
-    banner.classList.toggle("active", active);
-    bannerText.textContent = active ? "Sidecar LLM Active" : "Sidecar LLM Inactive";
-    gated.classList.toggle("inactive", !active);
+  const goals = [];
+  const objectives = [];
+  let goalInterval = 0;
+  let objectiveInterval = 0;
+  let selectedMemberId = "";
+  let goalLockBadge = null;
+  let thinkingBoxEl = null;
+  let thinkingStatusEl = null;
+  function emitState() {
+    const state = {
+      goals: goals.map((i) => ({ ...i })),
+      objectives: objectives.map((i) => ({ ...i })),
+      goalInterval,
+      objectiveInterval,
+      selectedMemberId
+    };
+    ctx.sendToBackend({ type: "gobj_state", state });
   }
-  ctx.events.on("SETTINGS_UPDATED", (payload) => {
-    if (payload?.key === "sidecarSettings") {
-      setCouncil(!!payload.value?.connectionProfileId);
-    }
-  });
-  function fetchCouncilStatus() {
-    fetch("/api/v1/settings").then((r) => r.json()).then((settings) => {
-      setCouncil(!!settings?.sidecarSettings?.connectionProfileId);
-    }).catch(() => {});
+  function updateGoalLock() {
+    if (!goalLockBadge)
+      return;
+    const locked = objectives.length > 0 && !objectives.every((o) => o.done);
+    goalLockBadge.classList.toggle("hidden", !locked);
   }
-  fetchCouncilStatus();
-  function buildListSection(labelText, placeholder) {
+  function buildListSection(labelText, placeholder, items, extraLabel) {
     const section = document.createElement("div");
     section.className = "gobj-section";
-    const label = document.createElement("div");
-    label.className = "gobj-label";
-    label.textContent = labelText;
+    const labelRow = document.createElement("div");
+    labelRow.className = "gobj-label";
+    labelRow.textContent = labelText;
+    if (extraLabel)
+      labelRow.appendChild(extraLabel());
     const row = document.createElement("div");
     row.className = "gobj-input-row";
     const input = document.createElement("input");
@@ -330,52 +349,66 @@ function setup(ctx) {
     const emptyEl = document.createElement("div");
     emptyEl.className = "gobj-empty";
     emptyEl.textContent = "None added yet.";
-    list.appendChild(emptyEl);
-    const items = [];
     function render() {
       list.innerHTML = "";
       if (items.length === 0) {
         list.appendChild(emptyEl);
         return;
       }
-      items.forEach((text, i) => {
-        const item = document.createElement("div");
-        item.className = "gobj-item";
+      items.forEach((item, i) => {
+        const el = document.createElement("div");
+        el.className = "gobj-item" + (item.done ? " done" : "");
+        const chk = document.createElement("input");
+        chk.type = "checkbox";
+        chk.className = "gobj-check";
+        chk.checked = item.done;
+        chk.addEventListener("change", () => {
+          item.done = chk.checked;
+          el.classList.toggle("done", item.done);
+          updateGoalLock();
+          emitState();
+        });
         const span = document.createElement("span");
         span.className = "gobj-item-text";
-        span.textContent = text;
-        span.title = text;
+        span.textContent = item.text;
+        span.title = item.text;
         const rm = document.createElement("button");
         rm.className = "gobj-remove-btn";
         rm.textContent = "×";
         rm.addEventListener("click", () => {
           items.splice(i, 1);
           render();
+          updateGoalLock();
+          emitState();
         });
-        item.appendChild(span);
-        item.appendChild(rm);
-        list.appendChild(item);
+        el.appendChild(chk);
+        el.appendChild(span);
+        el.appendChild(rm);
+        list.appendChild(el);
       });
     }
     function add() {
       const v = input.value.trim();
       if (!v)
         return;
-      items.push(v);
+      items.push({ text: v, done: false });
       input.value = "";
       render();
+      updateGoalLock();
+      emitState();
     }
     addBtn.addEventListener("click", add);
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter")
         add();
     });
-    section.appendChild(label);
+    section.appendChild(labelRow);
     section.appendChild(row);
     section.appendChild(list);
+    render();
     return section;
   }
-  function buildSpinner(labelFn) {
+  function buildSpinner(labelFn, onChange) {
     const wrap = document.createElement("div");
     wrap.className = "gobj-spinner-wrap";
     const labelEl = document.createElement("div");
@@ -413,19 +446,47 @@ function setup(ctx) {
       numInput.value = String(v);
       disabledTag.style.opacity = v === 0 ? "1" : "0";
       labelEl.innerHTML = labelFn(v);
+      onChange(v);
+      emitState();
     }
     upBtn.addEventListener("click", () => {
       numInput.value = String((parseInt(numInput.value) || 0) + 1);
       update();
     });
     downBtn.addEventListener("click", () => {
-      numInput.value = String((parseInt(numInput.value) || 0) - 1);
+      numInput.value = String(Math.max(0, (parseInt(numInput.value) || 0) - 1));
       update();
     });
     numInput.addEventListener("input", update);
     update();
     wrap.appendChild(labelEl);
     wrap.appendChild(spinRow);
+    return wrap;
+  }
+  function buildMemberSelector() {
+    const wrap = document.createElement("div");
+    wrap.className = "gobj-member-wrap";
+    const label = document.createElement("div");
+    label.className = "gobj-label";
+    label.textContent = "Council Member";
+    const select = document.createElement("select");
+    select.className = "gobj-select placeholder";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Loading characters…";
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+    select.addEventListener("change", () => {
+      selectedMemberId = select.value;
+      select.classList.toggle("placeholder", !selectedMemberId);
+      emitState();
+    });
+    ctx.sendToBackend({ type: "get_members" });
+    wrap.appendChild(label);
+    wrap.appendChild(select);
+    wrap._select = select;
+    wrap._placeholder = placeholder;
     return wrap;
   }
   function buildThinkingBox() {
@@ -435,44 +496,90 @@ function setup(ctx) {
     header.className = "gobj-thinking-header";
     const label = document.createElement("div");
     label.className = "gobj-label";
-    label.textContent = "Thinking";
-    const select = document.createElement("select");
-    select.className = "gobj-select";
-    const members = ["Select member...", "Member 1", "Member 2", "Member 3"];
-    members.forEach((name, i) => {
-      const opt = document.createElement("option");
-      opt.value = i === 0 ? "" : String(i);
-      opt.textContent = name;
-      if (i === 0) {
-        opt.disabled = true;
-        opt.selected = true;
-      }
-      select.appendChild(opt);
-    });
+    label.textContent = "Director";
+    const statusEl = document.createElement("span");
+    statusEl.className = "gobj-thinking-status";
+    statusEl.textContent = "idle";
+    thinkingStatusEl = statusEl;
     header.appendChild(label);
-    header.appendChild(select);
+    header.appendChild(statusEl);
     const box = document.createElement("div");
     box.className = "gobj-thinking-box";
-    box.textContent = "Thinking output will appear here...";
+    box.textContent = "Output will appear here after the first trigger…";
+    thinkingBoxEl = box;
     wrap.appendChild(header);
     wrap.appendChild(box);
     return wrap;
   }
-  gated.appendChild(buildListSection("Goals", "Add a goal..."));
-  const d1 = document.createElement("div");
-  d1.className = "gobj-divider";
-  gated.appendChild(d1);
-  gated.appendChild(buildListSection("Objectives", "Add an objective..."));
-  const d2 = document.createElement("div");
-  d2.className = "gobj-divider";
-  gated.appendChild(d2);
-  gated.appendChild(buildSpinner((n) => n === 0 ? "Injecting <span>Goals</span> — Disabled" : `Injecting <span>Goals</span> every <span>${n}</span> call${n === 1 ? "" : "s"}`));
-  gated.appendChild(buildSpinner((n) => n === 0 ? "Injecting <span>Objectives</span> — Disabled" : `Injecting <span>Objectives</span> every <span>${n}</span> call${n === 1 ? "" : "s"}`));
-  const d3 = document.createElement("div");
-  d3.className = "gobj-divider";
-  gated.appendChild(d3);
-  gated.appendChild(buildThinkingBox());
+  let memberSelectEl = null;
+  let memberPlaceholderEl = null;
+  const unsubBackend = ctx.onBackendMessage((payload) => {
+    switch (payload.type) {
+      case "members": {
+        if (!memberSelectEl || !memberPlaceholderEl)
+          return;
+        const members = payload.members ?? [];
+        memberPlaceholderEl.textContent = members.length ? "Select a character…" : "No characters found";
+        members.forEach((m) => {
+          const opt = document.createElement("option");
+          opt.value = m.id;
+          opt.textContent = m.name;
+          memberSelectEl.appendChild(opt);
+        });
+        break;
+      }
+      case "gobj_thinking": {
+        if (!thinkingBoxEl || !thinkingStatusEl)
+          return;
+        switch (payload.status) {
+          case "thinking":
+            thinkingBoxEl.textContent = "Analyzing…";
+            thinkingBoxEl.className = "gobj-thinking-box";
+            thinkingStatusEl.textContent = "thinking";
+            thinkingStatusEl.className = "gobj-thinking-status thinking";
+            break;
+          case "done":
+            thinkingBoxEl.textContent = payload.text ?? "";
+            thinkingBoxEl.className = "gobj-thinking-box" + (payload.text ? " has-content" : "");
+            thinkingStatusEl.textContent = "done";
+            thinkingStatusEl.className = "gobj-thinking-status";
+            break;
+          case "error":
+            thinkingBoxEl.textContent = payload.text ?? "Error.";
+            thinkingBoxEl.className = "gobj-thinking-box";
+            thinkingStatusEl.textContent = "error";
+            thinkingStatusEl.className = "gobj-thinking-status error";
+            break;
+        }
+        break;
+      }
+    }
+  });
+  const div = (cls) => Object.assign(document.createElement("div"), { className: cls });
+  const memberWrap = buildMemberSelector();
+  memberSelectEl = memberWrap._select;
+  memberPlaceholderEl = memberWrap._placeholder;
+  root.appendChild(memberWrap);
+  root.appendChild(div("gobj-divider"));
+  const lockBadge = document.createElement("span");
+  lockBadge.className = "gobj-lock-badge hidden";
+  lockBadge.title = "All objectives must be completed first";
+  lockBadge.textContent = "\uD83D\uDD12 locked";
+  goalLockBadge = lockBadge;
+  root.appendChild(buildListSection("Goals", "Add a goal…", goals, () => lockBadge));
+  root.appendChild(div("gobj-divider"));
+  root.appendChild(buildListSection("Objectives", "Add an objective…", objectives));
+  root.appendChild(div("gobj-divider"));
+  root.appendChild(buildSpinner((n) => n === 0 ? "Injecting <span>Goals</span> — Disabled" : `Injecting <span>Goals</span> every <span>${n}</span> call${n === 1 ? "" : "s"}`, (n) => {
+    goalInterval = n;
+  }));
+  root.appendChild(buildSpinner((n) => n === 0 ? "Injecting <span>Objectives</span> — Disabled" : `Injecting <span>Objectives</span> every <span>${n}</span> call${n === 1 ? "" : "s"}`, (n) => {
+    objectiveInterval = n;
+  }));
+  root.appendChild(div("gobj-divider"));
+  root.appendChild(buildThinkingBox());
   return () => {
+    unsubBackend();
     tab.destroy();
   };
 }
