@@ -298,14 +298,13 @@ function setup(ctx) {
     gated.classList.toggle("inactive", !active);
   }
   ctx.events.on("SETTINGS_UPDATED", (payload) => {
-    if (payload?.key === "council_mode" || payload?.key === "council_enabled") {
+    if (payload?.key === "councilMode") {
       setCouncil(!!payload.value);
     }
   });
-  ctx.events.on("CONNECTION_PROFILE_LOADED", () => fetchCouncilStatus());
   function fetchCouncilStatus() {
-    fetch("/api/v1/spindle/tools").then((r) => r.json()).then((tools) => {
-      setCouncil(Array.isArray(tools) && tools.some((t) => t.council_eligible === true));
+    fetch("/api/v1/settings").then((r) => r.json()).then((settings) => {
+      setCouncil(!!settings?.councilMode);
     }).catch(() => {});
   }
   fetchCouncilStatus();

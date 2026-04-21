@@ -309,18 +309,19 @@ export function setup(ctx: SpindleFrontendContext) {
   }
 
   // ── Council status: listen for settings changes ────────────────────────────
+  // Key is 'councilMode' per Lumiverse source (src/macros/definitions/lumia.ts)
   ctx.events.on('SETTINGS_UPDATED', (payload: any) => {
-    if (payload?.key === 'council_mode' || payload?.key === 'council_enabled') {
+    if (payload?.key === 'councilMode') {
       setCouncil(!!payload.value)
     }
   })
-  ctx.events.on('CONNECTION_PROFILE_LOADED', () => fetchCouncilStatus())
 
   function fetchCouncilStatus() {
-    fetch('/api/v1/spindle/tools')
+    fetch('/api/v1/settings')
       .then(r => r.json())
-      .then((tools: any[]) => {
-        setCouncil(Array.isArray(tools) && tools.some((t: any) => t.council_eligible === true))
+      .then((settings: any) => {
+        // councilMode is the authoritative flag per Lumiverse source
+        setCouncil(!!settings?.councilMode)
       })
       .catch(() => { /* leave inactive */ })
   }
