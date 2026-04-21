@@ -1,0 +1,13 @@
+{
+  "version": "6.7.6.7",
+  "name": "goalify",
+  "identifier": "goalify",
+  "author": "Guartis",
+  "github": "https://github.com/Guartis/goalify",
+  "homepage": "https://github.com/Guartis/goalify",
+  "description": "yadda yadda goals from ST but for Lumiverse wohooo",
+  "permissions": ["generation", "interceptor", "chats", "ui_panels"],
+  "entry_backend": "dist/backend.js",
+  "entry_frontend": "dist/frontend.js",
+  "minimum_lumiverse_version": "0.1.0"
+}
