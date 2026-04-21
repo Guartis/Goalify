@@ -18,7 +18,7 @@ function setup(ctx) {
     .gobj-root {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
       padding: 14px 12px;
       height: 100%;
       overflow-y: auto;
@@ -26,11 +26,18 @@ function setup(ctx) {
       font-family: inherit;
     }
 
-    .gobj-section {
+    .gobj-gated {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 14px;
+      transition: opacity 0.3s;
     }
+    .gobj-gated.inactive {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .gobj-section { display: flex; flex-direction: column; gap: 8px; }
 
     .gobj-label {
       font-size: 11px;
@@ -40,10 +47,7 @@ function setup(ctx) {
       color: var(--lumiverse-text-dim, #888);
     }
 
-    .gobj-input-row {
-      display: flex;
-      gap: 6px;
-    }
+    .gobj-input-row { display: flex; gap: 6px; }
 
     .gobj-input {
       flex: 1;
@@ -56,12 +60,8 @@ function setup(ctx) {
       outline: none;
       transition: border-color 0.15s;
     }
-    .gobj-input:focus {
-      border-color: var(--lumiverse-accent, #7c6ff7);
-    }
-    .gobj-input::placeholder {
-      color: var(--lumiverse-text-dim, #666);
-    }
+    .gobj-input:focus { border-color: var(--lumiverse-accent, #7c6ff7); }
+    .gobj-input::placeholder { color: var(--lumiverse-text-dim, #666); }
 
     .gobj-add-btn {
       padding: 7px 13px;
@@ -75,15 +75,13 @@ function setup(ctx) {
       transition: opacity 0.15s;
     }
     .gobj-add-btn:hover { opacity: 0.85; }
-    .gobj-add-btn:active { opacity: 0.7; }
 
     .gobj-list {
       display: flex;
       flex-direction: column;
       gap: 5px;
-      max-height: 160px;
+      max-height: 150px;
       overflow-y: auto;
-      padding-right: 2px;
     }
     .gobj-list::-webkit-scrollbar { width: 4px; }
     .gobj-list::-webkit-scrollbar-thumb {
@@ -102,10 +100,9 @@ function setup(ctx) {
       border-radius: var(--lumiverse-radius, 6px);
       font-size: 13px;
       color: var(--lumiverse-text, #eee);
-      animation: gobj-slide-in 0.15s ease;
+      animation: gobj-in 0.15s ease;
     }
-
-    @keyframes gobj-slide-in {
+    @keyframes gobj-in {
       from { opacity: 0; transform: translateY(-4px); }
       to   { opacity: 1; transform: translateY(0); }
     }
@@ -119,160 +116,207 @@ function setup(ctx) {
 
     .gobj-remove-btn {
       flex-shrink: 0;
-      width: 18px;
-      height: 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
       font-size: 14px;
-      line-height: 1;
-      background: none;
-      border: none;
+      background: none; border: none;
       color: var(--lumiverse-text-dim, #777);
       cursor: pointer;
       border-radius: 3px;
       transition: color 0.1s, background 0.1s;
     }
-    .gobj-remove-btn:hover {
-      color: #f87171;
-      background: rgba(248,113,113,0.12);
-    }
+    .gobj-remove-btn:hover { color: #f87171; background: rgba(248,113,113,0.12); }
 
     .gobj-empty {
       font-size: 12px;
       color: var(--lumiverse-text-dim, #666);
       font-style: italic;
-      padding: 4px 2px;
+      padding: 2px;
     }
 
-    /* ── Council button ─────────────────────────────── */
-    .gobj-council-btn {
-      width: 100%;
-      padding: 9px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: 1px solid var(--lumiverse-border, #333);
-      border-radius: var(--lumiverse-radius, 6px);
-      color: var(--lumiverse-text-dim, #888);
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .gobj-council-btn .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--lumiverse-text-dim, #555);
-      transition: background 0.2s, box-shadow 0.2s;
-    }
-    .gobj-council-btn.active {
-      border-color: var(--lumiverse-accent, #7c6ff7);
-      color: var(--lumiverse-text, #eee);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 25%, transparent);
-    }
-    .gobj-council-btn.active .dot {
-      background: var(--lumiverse-accent, #7c6ff7);
-      box-shadow: 0 0 8px 2px color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 70%, transparent);
-    }
-    .gobj-council-btn:hover {
-      border-color: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 50%, var(--lumiverse-border, #333));
-    }
+    .gobj-divider { height: 1px; background: var(--lumiverse-border, #2e2e2e); }
 
-    /* ── Divider ──────────────────────────────────────── */
-    .gobj-divider {
-      height: 1px;
-      background: var(--lumiverse-border, #2e2e2e);
-      margin: 2px 0;
-    }
-
-    /* ── Spinner (number box) ─────────────────────────── */
-    .gobj-spinner-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
+    /* ── Spinner ── */
+    .gobj-spinner-wrap { display: flex; flex-direction: column; gap: 6px; }
 
     .gobj-spinner-label {
       font-size: 12px;
       color: var(--lumiverse-text-dim, #888);
       line-height: 1.4;
     }
+    .gobj-spinner-label span {
+      color: var(--lumiverse-accent, #7c6ff7);
+      font-weight: 600;
+    }
 
-    .gobj-spinner {
+    .gobj-spinner-row { display: flex; align-items: center; gap: 6px; }
+
+    /* Arrows outside, LEFT of the input box */
+    .gobj-arrow-col {
       display: flex;
-      align-items: center;
-      gap: 0;
+      flex-direction: column;
       border: 1px solid var(--lumiverse-border, #333);
       border-radius: var(--lumiverse-radius, 6px);
       overflow: hidden;
+      flex-shrink: 0;
+    }
+    .gobj-arrow {
+      width: 26px; height: 19px;
+      display: flex; align-items: center; justify-content: center;
       background: var(--lumiverse-fill-subtle, #1a1a1a);
+      border: none;
+      color: var(--lumiverse-text-dim, #888);
+      cursor: pointer;
+      font-size: 9px;
+      transition: background 0.1s, color 0.1s;
+    }
+    .gobj-arrow:hover {
+      background: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 20%, transparent);
+      color: var(--lumiverse-text, #eee);
+    }
+    .gobj-arrow:first-child { border-bottom: 1px solid var(--lumiverse-border, #333); }
+
+    .gobj-spinner-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: var(--lumiverse-fill-subtle, #1a1a1a);
+      border: 1px solid var(--lumiverse-border, #333);
+      border-radius: var(--lumiverse-radius, 6px);
+      overflow: hidden;
     }
 
+    /* Kill ALL native number arrows */
     .gobj-spinner-num {
       flex: 1;
       padding: 7px 10px;
       font-size: 13px;
-      background: none;
-      border: none;
+      background: none; border: none;
       color: var(--lumiverse-text, #eee);
       outline: none;
       text-align: center;
+      -moz-appearance: textfield;
+      appearance: textfield;
       min-width: 0;
     }
     .gobj-spinner-num::-webkit-inner-spin-button,
-    .gobj-spinner-num::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .gobj-spinner-num::-webkit-outer-spin-button { display: none !important; }
 
-    .gobj-spinner-disabled {
-      font-size: 11px;
-      color: var(--lumiverse-accent, #7c6ff7);
-      padding: 0 8px 0 0;
-      white-space: nowrap;
-      font-weight: 600;
+    .gobj-disabled-tag {
+      font-size: 11px; font-weight: 700;
       letter-spacing: 0.04em;
+      color: var(--lumiverse-text-dim, #555);
+      padding: 0 10px 0 0;
+      white-space: nowrap;
+      transition: opacity 0.2s;
     }
 
-    .gobj-arrow-col {
-      display: flex;
-      flex-direction: column;
-      border-left: 1px solid var(--lumiverse-border, #333);
-    }
+    /* ── Thinking box ── */
+    .gobj-thinking-wrap { display: flex; flex-direction: column; gap: 8px; }
 
-    .gobj-arrow {
-      width: 28px;
-      height: 20px;
+    .gobj-thinking-header {
       display: flex;
       align-items: center;
-      justify-content: center;
-      background: none;
-      border: none;
-      color: var(--lumiverse-text-dim, #888);
-      cursor: pointer;
-      font-size: 10px;
-      transition: background 0.1s, color 0.1s;
+      justify-content: space-between;
     }
-    .gobj-arrow:hover {
-      background: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 15%, transparent);
+
+    .gobj-select {
+      padding: 5px 8px;
+      font-size: 12px;
+      background: var(--lumiverse-fill-subtle, #1a1a1a);
+      border: 1px solid var(--lumiverse-border, #333);
+      border-radius: var(--lumiverse-radius, 6px);
       color: var(--lumiverse-text, #eee);
+      outline: none;
+      cursor: pointer;
+      max-width: 160px;
+      transition: border-color 0.15s;
     }
-    .gobj-arrow:first-child {
-      border-bottom: 1px solid var(--lumiverse-border, #333);
+    .gobj-select:focus { border-color: var(--lumiverse-accent, #7c6ff7); }
+
+    .gobj-thinking-box {
+      min-height: 140px;
+      padding: 10px 12px;
+      background: var(--lumiverse-fill-subtle, #1a1a1a);
+      border: 1px solid var(--lumiverse-border, #2e2e2e);
+      border-radius: var(--lumiverse-radius, 6px);
+      color: var(--lumiverse-text-dim, #555);
+      font-size: 13px;
+      font-style: italic;
+      user-select: none;
+      cursor: default;
+    }
+
+    /* ── Council status banner ── */
+    .gobj-council-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--lumiverse-fill-subtle, #1a1a1a);
+      border: 1px solid var(--lumiverse-border, #2e2e2e);
+      border-radius: var(--lumiverse-radius, 6px);
+      font-size: 12px;
+      color: var(--lumiverse-text-dim, #777);
+      transition: border-color 0.3s, color 0.3s;
+    }
+    .gobj-council-status .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--lumiverse-text-dim, #444);
+      flex-shrink: 0;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .gobj-council-status.active {
+      color: var(--lumiverse-text, #ddd);
+      border-color: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 50%, var(--lumiverse-border, #333));
+    }
+    .gobj-council-status.active .dot {
+      background: var(--lumiverse-accent, #7c6ff7);
+      box-shadow: 0 0 7px 2px color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 55%, transparent);
     }
   `;
   tab.root.appendChild(style);
   const root = document.createElement("div");
   root.className = "gobj-root";
   tab.root.appendChild(root);
+  const banner = document.createElement("div");
+  banner.className = "gobj-council-status";
+  const dot = document.createElement("span");
+  dot.className = "dot";
+  const bannerText = document.createElement("span");
+  bannerText.textContent = "Council Inactive";
+  banner.appendChild(dot);
+  banner.appendChild(bannerText);
+  root.appendChild(banner);
+  const gated = document.createElement("div");
+  gated.className = "gobj-gated inactive";
+  root.appendChild(gated);
+  function setCouncil(active) {
+    banner.classList.toggle("active", active);
+    bannerText.textContent = active ? "Council Active" : "Council Inactive";
+    gated.classList.toggle("inactive", !active);
+  }
+  ctx.events.on("SETTINGS_UPDATED", (payload) => {
+    if (payload?.key === "council_mode" || payload?.key === "council_enabled") {
+      setCouncil(!!payload.value);
+    }
+  });
+  ctx.events.on("CONNECTION_PROFILE_LOADED", () => fetchCouncilStatus());
+  function fetchCouncilStatus() {
+    fetch("/api/v1/spindle/tools").then((r) => r.json()).then((tools) => {
+      setCouncil(Array.isArray(tools) && tools.some((t) => t.council_eligible === true));
+    }).catch(() => {});
+  }
+  fetchCouncilStatus();
   function buildListSection(labelText, placeholder) {
     const section = document.createElement("div");
     section.className = "gobj-section";
     const label = document.createElement("div");
     label.className = "gobj-label";
     label.textContent = labelText;
-    const inputRow = document.createElement("div");
-    inputRow.className = "gobj-input-row";
+    const row = document.createElement("div");
+    row.className = "gobj-input-row";
     const input = document.createElement("input");
     input.className = "gobj-input";
     input.type = "text";
@@ -280,19 +324,19 @@ function setup(ctx) {
     const addBtn = document.createElement("button");
     addBtn.className = "gobj-add-btn";
     addBtn.textContent = "+";
-    inputRow.appendChild(input);
-    inputRow.appendChild(addBtn);
+    row.appendChild(input);
+    row.appendChild(addBtn);
     const list = document.createElement("div");
     list.className = "gobj-list";
-    const empty = document.createElement("div");
-    empty.className = "gobj-empty";
-    empty.textContent = "None added yet.";
-    list.appendChild(empty);
+    const emptyEl = document.createElement("div");
+    emptyEl.className = "gobj-empty";
+    emptyEl.textContent = "None added yet.";
+    list.appendChild(emptyEl);
     const items = [];
-    function renderList() {
+    function render() {
       list.innerHTML = "";
       if (items.length === 0) {
-        list.appendChild(empty);
+        list.appendChild(emptyEl);
         return;
       }
       items.forEach((text, i) => {
@@ -302,67 +346,74 @@ function setup(ctx) {
         span.className = "gobj-item-text";
         span.textContent = text;
         span.title = text;
-        const removeBtn = document.createElement("button");
-        removeBtn.className = "gobj-remove-btn";
-        removeBtn.textContent = "×";
-        removeBtn.title = "Remove";
-        removeBtn.addEventListener("click", () => {
+        const rm = document.createElement("button");
+        rm.className = "gobj-remove-btn";
+        rm.textContent = "×";
+        rm.addEventListener("click", () => {
           items.splice(i, 1);
-          renderList();
+          render();
         });
         item.appendChild(span);
-        item.appendChild(removeBtn);
+        item.appendChild(rm);
         list.appendChild(item);
       });
     }
-    function addItem() {
-      const val = input.value.trim();
-      if (!val)
+    function add() {
+      const v = input.value.trim();
+      if (!v)
         return;
-      items.push(val);
+      items.push(v);
       input.value = "";
-      renderList();
+      render();
     }
-    addBtn.addEventListener("click", addItem);
+    addBtn.addEventListener("click", add);
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter")
-        addItem();
+        add();
     });
     section.appendChild(label);
-    section.appendChild(inputRow);
+    section.appendChild(row);
     section.appendChild(list);
     return section;
   }
-  function buildSpinner(labelText) {
+  function buildSpinner(labelFn) {
     const wrap = document.createElement("div");
     wrap.className = "gobj-spinner-wrap";
-    const label = document.createElement("div");
-    label.className = "gobj-spinner-label";
-    label.textContent = labelText;
-    const spinnerRow = document.createElement("div");
-    spinnerRow.className = "gobj-spinner";
-    const numInput = document.createElement("input");
-    numInput.className = "gobj-spinner-num";
-    numInput.type = "number";
-    numInput.min = "0";
-    numInput.value = "0";
-    const disabledTag = document.createElement("span");
-    disabledTag.className = "gobj-spinner-disabled";
-    disabledTag.textContent = "Disabled";
+    const labelEl = document.createElement("div");
+    labelEl.className = "gobj-spinner-label";
+    const spinRow = document.createElement("div");
+    spinRow.className = "gobj-spinner-row";
     const arrowCol = document.createElement("div");
     arrowCol.className = "gobj-arrow-col";
     const upBtn = document.createElement("button");
     upBtn.className = "gobj-arrow";
     upBtn.textContent = "▲";
-    upBtn.title = "Increase";
     const downBtn = document.createElement("button");
     downBtn.className = "gobj-arrow";
     downBtn.textContent = "▼";
-    downBtn.title = "Decrease";
+    arrowCol.appendChild(upBtn);
+    arrowCol.appendChild(downBtn);
+    const box = document.createElement("div");
+    box.className = "gobj-spinner-box";
+    const numInput = document.createElement("input");
+    numInput.className = "gobj-spinner-num";
+    numInput.type = "number";
+    numInput.value = "0";
+    numInput.min = "0";
+    const disabledTag = document.createElement("span");
+    disabledTag.className = "gobj-disabled-tag";
+    disabledTag.textContent = "Disabled";
+    box.appendChild(numInput);
+    box.appendChild(disabledTag);
+    spinRow.appendChild(arrowCol);
+    spinRow.appendChild(box);
     function update() {
-      const v = parseInt(numInput.value) || 0;
-      numInput.value = String(Math.max(0, v));
-      disabledTag.style.display = numInput.value === "0" ? "" : "none";
+      let v = parseInt(numInput.value) || 0;
+      if (v < 0)
+        v = 0;
+      numInput.value = String(v);
+      disabledTag.style.opacity = v === 0 ? "1" : "0";
+      labelEl.innerHTML = labelFn(v);
     }
     upBtn.addEventListener("click", () => {
       numInput.value = String((parseInt(numInput.value) || 0) + 1);
@@ -373,53 +424,55 @@ function setup(ctx) {
       update();
     });
     numInput.addEventListener("input", update);
-    arrowCol.appendChild(upBtn);
-    arrowCol.appendChild(downBtn);
-    spinnerRow.appendChild(numInput);
-    spinnerRow.appendChild(disabledTag);
-    spinnerRow.appendChild(arrowCol);
-    wrap.appendChild(label);
-    wrap.appendChild(spinnerRow);
+    update();
+    wrap.appendChild(labelEl);
+    wrap.appendChild(spinRow);
     return wrap;
   }
-  function buildCouncilButton() {
-    const section = document.createElement("div");
-    section.className = "gobj-section";
+  function buildThinkingBox() {
+    const wrap = document.createElement("div");
+    wrap.className = "gobj-thinking-wrap";
+    const header = document.createElement("div");
+    header.className = "gobj-thinking-header";
     const label = document.createElement("div");
     label.className = "gobj-label";
-    label.textContent = "Council";
-    const btn = document.createElement("button");
-    btn.className = "gobj-council-btn";
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    const btnText = document.createElement("span");
-    btnText.textContent = "Council Inactive";
-    btn.appendChild(dot);
-    btn.appendChild(btnText);
-    let active = false;
-    btn.addEventListener("click", () => {
-      active = !active;
-      btn.classList.toggle("active", active);
-      btnText.textContent = active ? "Council Active" : "Council Inactive";
+    label.textContent = "Thinking";
+    const select = document.createElement("select");
+    select.className = "gobj-select";
+    const members = ["Select member...", "Member 1", "Member 2", "Member 3"];
+    members.forEach((name, i) => {
+      const opt = document.createElement("option");
+      opt.value = i === 0 ? "" : String(i);
+      opt.textContent = name;
+      if (i === 0) {
+        opt.disabled = true;
+        opt.selected = true;
+      }
+      select.appendChild(opt);
     });
-    section.appendChild(label);
-    section.appendChild(btn);
-    return section;
+    header.appendChild(label);
+    header.appendChild(select);
+    const box = document.createElement("div");
+    box.className = "gobj-thinking-box";
+    box.textContent = "Thinking output will appear here...";
+    wrap.appendChild(header);
+    wrap.appendChild(box);
+    return wrap;
   }
-  root.appendChild(buildListSection("Goals", "Add a goal..."));
-  const div1 = document.createElement("div");
-  div1.className = "gobj-divider";
-  root.appendChild(div1);
-  root.appendChild(buildListSection("Objectives", "Add an objective..."));
-  const div2 = document.createElement("div");
-  div2.className = "gobj-divider";
-  root.appendChild(div2);
-  root.appendChild(buildCouncilButton());
-  const div3 = document.createElement("div");
-  div3.className = "gobj-divider";
-  root.appendChild(div3);
-  root.appendChild(buildSpinner("Injecting Goal Every x Calls"));
-  root.appendChild(buildSpinner("Injecting Objectives Every x Calls"));
+  gated.appendChild(buildListSection("Goals", "Add a goal..."));
+  const d1 = document.createElement("div");
+  d1.className = "gobj-divider";
+  gated.appendChild(d1);
+  gated.appendChild(buildListSection("Objectives", "Add an objective..."));
+  const d2 = document.createElement("div");
+  d2.className = "gobj-divider";
+  gated.appendChild(d2);
+  gated.appendChild(buildSpinner((n) => n === 0 ? "Injecting <span>Goals</span> — Disabled" : `Injecting <span>Goals</span> every <span>${n}</span> call${n === 1 ? "" : "s"}`));
+  gated.appendChild(buildSpinner((n) => n === 0 ? "Injecting <span>Objectives</span> — Disabled" : `Injecting <span>Objectives</span> every <span>${n}</span> call${n === 1 ? "" : "s"}`));
+  const d3 = document.createElement("div");
+  d3.className = "gobj-divider";
+  gated.appendChild(d3);
+  gated.appendChild(buildThinkingBox());
   return () => {
     tab.destroy();
   };
