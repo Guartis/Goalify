@@ -1,0 +1,17 @@
+{
+  "name": "goalify",
+  "version": "1.0.0",
+  "description": "Long-term and short-term narrative goal tracking for Lumiverse.",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "esbuild src/backend.ts --bundle --outfile=dist/backend.js --target=esnext --format=esm --platform=neutral",
+    "build:frontend": "esbuild src/frontend.ts --bundle --outfile=dist/frontend.js --target=esnext --format=esm --platform=browser",
+    "watch": "npm run build:backend -- --watch & npm run build:frontend -- --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "lumiverse-spindle-types": "^0.1.0",
+    "typescript": "^5.6.0"
+  }
+}

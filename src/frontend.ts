@@ -1,667 +1,270 @@
-import type { SpindleFrontendContext } from 'lumiverse-spindle-types'
+// NOTE: see the comment at the top of backend.ts — the published
+// `lumiverse-spindle-types` package (0.1.9) predates several documented
+// additions this file uses (extra `registerDrawerTab` metadata fields like
+// `shortName`/`description`/`keywords`/`headerTitle`, etc). `ctx` is typed as
+// `any` here so the build matches the documented runtime API instead of a
+// stale .d.ts. Swap back to `SpindleFrontendContext` once an updated package
+// version is published.
+import { GoalState, BackendMessage, FrontendRequest, PermissionSnapshot } from './types'
 
-// ── Shared types ───────────────────────────────────────────────────────────────
-interface Item { text: string; done: boolean }
-interface GobjState {
-  goals:             Item[]
-  objectives:        Item[]
-  goalInterval:      number
-  objectiveInterval: number
-  selectedMemberId:  string
-}
+const ICON = `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/>
+  <circle cx="10" cy="10" r="3.5" stroke="currentColor" stroke-width="1.5"/>
+  <circle cx="10" cy="10" r="0.75" fill="currentColor"/>
+</svg>`
 
-export function setup(ctx: SpindleFrontendContext) {
+export function setup(ctx: any) {
+  const removeStyle = ctx.dom.addStyle(`
+    .goalify-root { padding: 14px; display: flex; flex-direction: column; gap: 16px; }
+    .goalify-empty { color: var(--lumiverse-text-dim); font-size: 13px; padding: 24px 4px; text-align: center; }
+    .goalify-section { border: 1px solid var(--lumiverse-border); border-radius: var(--lumiverse-radius); padding: 12px; background: var(--lumiverse-fill-subtle); }
+    .goalify-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; }
+    .goalify-title { font-size: 13px; font-weight: 600; color: var(--lumiverse-text); }
+    .goalify-badge { font-size: 10.5px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--lumiverse-border); color: var(--lumiverse-text-muted); white-space: nowrap; }
+    .goalify-badge.ai { color: var(--lumiverse-accent-fg); background: var(--lumiverse-accent); border-color: transparent; }
+    .goalify-textarea { width: 100%; min-height: 64px; resize: vertical; padding: 8px 10px; background: var(--lumiverse-fill); border: 1px solid var(--lumiverse-border); border-radius: var(--lumiverse-radius); color: var(--lumiverse-text); font-size: 13px; font-family: inherit; box-sizing: border-box; }
+    .goalify-textarea::placeholder { color: var(--lumiverse-text-dim); }
+    .goalify-row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+    .goalify-btn { font-size: 12px; padding: 6px 10px; border-radius: var(--lumiverse-radius); border: 1px solid var(--lumiverse-border); background: var(--lumiverse-fill); color: var(--lumiverse-text); cursor: pointer; transition: border-color var(--lumiverse-transition-fast); }
+    .goalify-btn:hover { border-color: var(--lumiverse-border-hover); }
+    .goalify-btn:disabled { opacity: 0.5; cursor: default; }
+    .goalify-btn.primary { background: var(--lumiverse-accent); color: var(--lumiverse-accent-fg); border-color: transparent; }
+    .goalify-hint { font-size: 11px; color: var(--lumiverse-text-dim); margin-top: 6px; }
+    .goalify-intervals { display: flex; gap: 14px; flex-wrap: wrap; }
+    .goalify-field { display: flex; flex-direction: column; gap: 4px; }
+    .goalify-field label { font-size: 11px; color: var(--lumiverse-text-muted); }
+    .goalify-field input { width: 72px; padding: 5px 8px; background: var(--lumiverse-fill); border: 1px solid var(--lumiverse-border); border-radius: var(--lumiverse-radius); color: var(--lumiverse-text); font-size: 12.5px; }
+    .goalify-counter { font-size: 11.5px; color: var(--lumiverse-text-dim); }
+    .goalify-warn { font-size: 11.5px; color: var(--lumiverse-text-muted); background: var(--lumiverse-fill); border: 1px dashed var(--lumiverse-border); border-radius: var(--lumiverse-radius); padding: 8px 10px; }
+  `)
 
-  // ── Register drawer tab ──────────────────────────────────────────────────────
   const tab = ctx.ui.registerDrawerTab({
-    id: 'goals-tab',
-    title: 'Goals & Objectives',
+    id: 'goalify',
+    title: 'Goalify',
     shortName: 'Goals',
-    description: 'Manage goals and objectives for LLM injection',
-    keywords: ['goals', 'objectives', 'inject', 'council'],
-    headerTitle: 'Goals & Objectives',
-    iconSvg: `<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="10" cy="10" r="3.5" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="10" cy="10" r="1" fill="currentColor"/>
-    </svg>`,
+    description: 'Track long-term and short-term narrative goals for this chat',
+    keywords: ['goal', 'objective', 'plot', 'story', 'arc', 'focus'],
+    headerTitle: 'Goalify',
+    iconSvg: ICON,
   })
 
-  // ── Styles ───────────────────────────────────────────────────────────────────
-  const style = document.createElement('style')
-  style.textContent = `
-    .gobj-root {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      padding: 14px 12px;
-      height: 100%;
-      overflow-y: auto;
-      box-sizing: border-box;
-      font-family: inherit;
-    }
-
-    .gobj-section { display: flex; flex-direction: column; gap: 8px; }
-
-    .gobj-label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--lumiverse-text-dim, #888);
-    }
-
-    .gobj-input-row { display: flex; gap: 6px; }
-
-    .gobj-input {
-      flex: 1;
-      padding: 7px 10px;
-      font-size: 13px;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: 1px solid var(--lumiverse-border, #333);
-      border-radius: var(--lumiverse-radius, 6px);
-      color: var(--lumiverse-text, #eee);
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    .gobj-input:focus { border-color: var(--lumiverse-accent, #7c6ff7); }
-    .gobj-input::placeholder { color: var(--lumiverse-text-dim, #666); }
-
-    .gobj-add-btn {
-      padding: 7px 13px;
-      font-size: 13px;
-      font-weight: 600;
-      background: var(--lumiverse-accent, #7c6ff7);
-      color: #fff;
-      border: none;
-      border-radius: var(--lumiverse-radius, 6px);
-      cursor: pointer;
-      transition: opacity 0.15s;
-    }
-    .gobj-add-btn:hover { opacity: 0.85; }
-
-    .gobj-list {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      max-height: 165px;
-      overflow-y: auto;
-    }
-    .gobj-list::-webkit-scrollbar { width: 4px; }
-    .gobj-list::-webkit-scrollbar-thumb {
-      background: var(--lumiverse-border, #444);
-      border-radius: 2px;
-    }
-
-    .gobj-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: 1px solid var(--lumiverse-border, #2e2e2e);
-      border-radius: var(--lumiverse-radius, 6px);
-      font-size: 13px;
-      color: var(--lumiverse-text, #eee);
-      animation: gobj-in 0.15s ease;
-      transition: border-color 0.2s, opacity 0.2s;
-    }
-    .gobj-item.done {
-      opacity: 0.5;
-      border-color: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 25%, var(--lumiverse-border, #2e2e2e));
-    }
-    @keyframes gobj-in {
-      from { opacity: 0; transform: translateY(-4px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .gobj-check {
-      flex-shrink: 0;
-      width: 15px; height: 15px;
-      appearance: none; -webkit-appearance: none;
-      border: 1.5px solid var(--lumiverse-border, #555);
-      border-radius: 3px;
-      background: transparent;
-      cursor: pointer;
-      position: relative;
-      transition: border-color 0.15s, background 0.15s;
-    }
-    .gobj-check:checked {
-      background: var(--lumiverse-accent, #7c6ff7);
-      border-color: var(--lumiverse-accent, #7c6ff7);
-    }
-    .gobj-check:checked::after {
-      content: '';
-      position: absolute;
-      left: 3px; top: 0px;
-      width: 5px; height: 8px;
-      border: 2px solid #fff;
-      border-top: none; border-left: none;
-      transform: rotate(45deg);
-    }
-
-    .gobj-item-text {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .gobj-item.done .gobj-item-text {
-      text-decoration: line-through;
-      color: var(--lumiverse-text-dim, #666);
-    }
-
-    .gobj-remove-btn {
-      flex-shrink: 0;
-      width: 18px; height: 18px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px;
-      background: none; border: none;
-      color: var(--lumiverse-text-dim, #777);
-      cursor: pointer;
-      border-radius: 3px;
-      transition: color 0.1s, background 0.1s;
-    }
-    .gobj-remove-btn:hover { color: #f87171; background: rgba(248,113,113,0.12); }
-
-    .gobj-empty {
-      font-size: 12px;
-      color: var(--lumiverse-text-dim, #666);
-      font-style: italic;
-      padding: 2px;
-    }
-
-    .gobj-lock-badge {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      color: #f87171;
-      background: rgba(248,113,113,0.10);
-      border: 1px solid rgba(248,113,113,0.25);
-      border-radius: 4px;
-      padding: 1px 5px;
-    }
-    .gobj-lock-badge.hidden { display: none; }
-
-    .gobj-divider { height: 1px; background: var(--lumiverse-border, #2e2e2e); }
-
-    /* ── Member selector ── */
-    .gobj-member-wrap { display: flex; flex-direction: column; gap: 8px; }
-
-    .gobj-select {
-      width: 100%;
-      padding: 7px 10px;
-      font-size: 13px;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: 1px solid var(--lumiverse-border, #333);
-      border-radius: var(--lumiverse-radius, 6px);
-      color: var(--lumiverse-text, #eee);
-      outline: none;
-      cursor: pointer;
-      transition: border-color 0.15s;
-    }
-    .gobj-select:focus { border-color: var(--lumiverse-accent, #7c6ff7); }
-    .gobj-select.placeholder { color: var(--lumiverse-text-dim, #666); }
-
-    /* ── Spinner ── */
-    .gobj-spinner-wrap { display: flex; flex-direction: column; gap: 6px; }
-
-    .gobj-spinner-label {
-      font-size: 12px;
-      color: var(--lumiverse-text-dim, #888);
-      line-height: 1.4;
-    }
-    .gobj-spinner-label span { color: var(--lumiverse-accent, #7c6ff7); font-weight: 600; }
-
-    .gobj-spinner-row { display: flex; align-items: center; gap: 6px; }
-
-    .gobj-arrow-col {
-      display: flex;
-      flex-direction: column;
-      border: 1px solid var(--lumiverse-border, #333);
-      border-radius: var(--lumiverse-radius, 6px);
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-    .gobj-arrow {
-      width: 26px; height: 19px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: none;
-      color: var(--lumiverse-text-dim, #888);
-      cursor: pointer;
-      font-size: 9px;
-      transition: background 0.1s, color 0.1s;
-    }
-    .gobj-arrow:hover {
-      background: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 20%, transparent);
-      color: var(--lumiverse-text, #eee);
-    }
-    .gobj-arrow:first-child { border-bottom: 1px solid var(--lumiverse-border, #333); }
-
-    .gobj-spinner-box {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: 1px solid var(--lumiverse-border, #333);
-      border-radius: var(--lumiverse-radius, 6px);
-      overflow: hidden;
-    }
-    .gobj-spinner-num {
-      flex: 1;
-      padding: 7px 10px;
-      font-size: 13px;
-      background: none; border: none;
-      color: var(--lumiverse-text, #eee);
-      outline: none;
-      text-align: center;
-      -moz-appearance: textfield;
-      appearance: textfield;
-      min-width: 0;
-    }
-    .gobj-spinner-num::-webkit-inner-spin-button,
-    .gobj-spinner-num::-webkit-outer-spin-button { display: none !important; }
-
-    .gobj-disabled-tag {
-      font-size: 11px; font-weight: 700;
-      letter-spacing: 0.04em;
-      color: var(--lumiverse-text-dim, #555);
-      padding: 0 10px 0 0;
-      white-space: nowrap;
-      transition: opacity 0.2s;
-    }
-
-    /* ── Thinking box ── */
-    .gobj-thinking-wrap { display: flex; flex-direction: column; gap: 8px; }
-
-    .gobj-thinking-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .gobj-thinking-status {
-      font-size: 11px;
-      color: var(--lumiverse-text-dim, #555);
-      font-style: italic;
-    }
-    .gobj-thinking-status.thinking { color: var(--lumiverse-accent, #7c6ff7); }
-    .gobj-thinking-status.error    { color: #f87171; }
-
-    .gobj-thinking-box {
-      min-height: 90px;
-      padding: 10px 12px;
-      background: var(--lumiverse-fill-subtle, #1a1a1a);
-      border: 1px solid var(--lumiverse-border, #2e2e2e);
-      border-radius: var(--lumiverse-radius, 6px);
-      color: var(--lumiverse-text-dim, #555);
-      font-size: 13px;
-      font-style: italic;
-      line-height: 1.55;
-      white-space: pre-wrap;
-      word-break: break-word;
-      transition: border-color 0.3s, color 0.2s;
-    }
-    .gobj-thinking-box.has-content {
-      color: var(--lumiverse-text, #eee);
-      font-style: normal;
-      border-color: color-mix(in srgb, var(--lumiverse-accent, #7c6ff7) 30%, var(--lumiverse-border, #2e2e2e));
-    }
-  `
-  tab.root.appendChild(style)
-
-  // ── Root ─────────────────────────────────────────────────────────────────────
   const root = document.createElement('div')
-  root.className = 'gobj-root'
+  root.className = 'goalify-root'
   tab.root.appendChild(root)
 
-  // ── Local state ───────────────────────────────────────────────────────────────
-  const goals:      Item[] = []
-  const objectives: Item[] = []
-  let goalInterval      = 0
-  let objectiveInterval = 0
-  let selectedMemberId  = ''
+  let currentChatId: string | null = null
+  let currentState: GoalState | null = null
+  let permissions: PermissionSnapshot | null = null
+  let longBusy = false
+  let shortBusy = false
 
-  // UI refs updated from outside their builders
-  let goalLockBadge:    HTMLSpanElement | null = null
-  let thinkingBoxEl:    HTMLDivElement  | null = null
-  let thinkingStatusEl: HTMLSpanElement | null = null
+  function send(msg: FrontendRequest) {
+    ctx.sendToBackend(msg)
+  }
 
-  // ── emitState — send full snapshot to backend on every change ────────────────
-  function emitState() {
-    const state: GobjState = {
-      goals:            goals.map(i => ({ ...i })),
-      objectives:       objectives.map(i => ({ ...i })),
-      goalInterval,
-      objectiveInterval,
-      selectedMemberId,
+  function render() {
+    root.replaceChildren()
+
+    if (!currentChatId || !currentState) {
+      const empty = document.createElement('div')
+      empty.className = 'goalify-empty'
+      empty.textContent = 'Open a chat to set up its goals.'
+      root.appendChild(empty)
+      return
     }
-    ctx.sendToBackend({ type: 'gobj_state', state })
+
+    if (permissions && !permissions.generation) {
+      const warn = document.createElement('div')
+      warn.className = 'goalify-warn'
+      warn.textContent =
+        'Enable the "Generation" permission for Goalify in the Extensions panel to auto-generate and regenerate goals.'
+      root.appendChild(warn)
+    }
+
+    root.appendChild(buildGoalSection('long'))
+    root.appendChild(buildGoalSection('short'))
+    root.appendChild(buildIntervalSection())
+
+    const counter = document.createElement('div')
+    counter.className = 'goalify-counter'
+    counter.textContent = describeProgress()
+    root.appendChild(counter)
   }
 
-  // ── updateGoalLock ────────────────────────────────────────────────────────────
-  function updateGoalLock() {
-    if (!goalLockBadge) return
-    const locked = objectives.length > 0 && !objectives.every(o => o.done)
-    goalLockBadge.classList.toggle('hidden', !locked)
+  function describeProgress(): string {
+    if (!currentState) return ''
+    const { userMessageCount, longEvery, shortEvery } = currentState
+    const toLong =
+      userMessageCount > 0 && userMessageCount % longEvery === 0 ? 0 : longEvery - (userMessageCount % longEvery)
+    const toShort =
+      userMessageCount > 0 && userMessageCount % shortEvery === 0 ? 0 : shortEvery - (userMessageCount % shortEvery)
+    return `${userMessageCount} message${userMessageCount === 1 ? '' : 's'} sent · next long-term reminder in ${toLong} · next focus reminder in ${toShort}`
   }
 
-  // ── buildListSection ──────────────────────────────────────────────────────────
-  function buildListSection(
-    labelText:   string,
-    placeholder: string,
-    items:       Item[],
-    extraLabel?: () => HTMLElement
-  ): HTMLElement {
+  function buildGoalSection(kind: 'long' | 'short'): HTMLElement {
+    const goal = kind === 'long' ? currentState!.long : currentState!.short
+    const busy = kind === 'long' ? longBusy : shortBusy
+
     const section = document.createElement('div')
-    section.className = 'gobj-section'
+    section.className = 'goalify-section'
 
-    const labelRow = document.createElement('div')
-    labelRow.className = 'gobj-label'
-    labelRow.textContent = labelText
-    if (extraLabel) labelRow.appendChild(extraLabel())
+    const head = document.createElement('div')
+    head.className = 'goalify-section-head'
+
+    const title = document.createElement('div')
+    title.className = 'goalify-title'
+    title.textContent = kind === 'long' ? 'Long-term goal' : 'Short-term focus'
+    head.appendChild(title)
+
+    const badge = document.createElement('span')
+    badge.className = 'goalify-badge' + (goal.source === 'ai' ? ' ai' : '')
+    badge.textContent = goal.source === 'ai' ? 'AI-generated' : goal.source === 'user' ? 'Manually set' : 'Not set'
+    head.appendChild(badge)
+
+    section.appendChild(head)
+
+    const textarea = document.createElement('textarea')
+    textarea.className = 'goalify-textarea'
+    textarea.placeholder =
+      kind === 'long'
+        ? 'e.g. "Redemption of Kael" — the overarching story arc.'
+        : 'e.g. "Give Mira a way to confront her fears" — the current chapter-level focus.'
+    textarea.value = goal.text
+    textarea.disabled = busy
+
+    let dirty = false
+    textarea.addEventListener('input', () => {
+      dirty = true
+    })
+
+    section.appendChild(textarea)
 
     const row = document.createElement('div')
-    row.className = 'gobj-input-row'
+    row.className = 'goalify-row'
 
-    const input = document.createElement('input')
-    input.className = 'gobj-input'
-    input.type = 'text'
-    input.placeholder = placeholder
+    const saveBtn = document.createElement('button')
+    saveBtn.className = 'goalify-btn primary'
+    saveBtn.textContent = 'Save'
+    saveBtn.disabled = busy
+    saveBtn.addEventListener('click', () => {
+      if (!currentChatId) return
+      dirty = false
+      send({ type: kind === 'long' ? 'set_long' : 'set_short', chatId: currentChatId, text: textarea.value })
+    })
+    row.appendChild(saveBtn)
 
-    const addBtn = document.createElement('button')
-    addBtn.className = 'gobj-add-btn'
-    addBtn.textContent = '+'
+    const regenBtn = document.createElement('button')
+    regenBtn.className = 'goalify-btn'
+    regenBtn.textContent = busy ? 'Generating…' : 'Regenerate'
+    regenBtn.disabled = busy || !permissions?.generation
+    regenBtn.addEventListener('click', () => {
+      if (!currentChatId) return
+      send({ type: kind === 'long' ? 'regenerate_long' : 'regenerate_short', chatId: currentChatId })
+    })
+    row.appendChild(regenBtn)
 
-    row.appendChild(input)
-    row.appendChild(addBtn)
-
-    const list = document.createElement('div')
-    list.className = 'gobj-list'
-
-    const emptyEl = document.createElement('div')
-    emptyEl.className = 'gobj-empty'
-    emptyEl.textContent = 'None added yet.'
-
-    function render() {
-      list.innerHTML = ''
-      if (items.length === 0) { list.appendChild(emptyEl); return }
-      items.forEach((item, i) => {
-        const el = document.createElement('div')
-        el.className = 'gobj-item' + (item.done ? ' done' : '')
-
-        const chk = document.createElement('input')
-        chk.type = 'checkbox'
-        chk.className = 'gobj-check'
-        chk.checked = item.done
-        chk.addEventListener('change', () => {
-          item.done = chk.checked
-          el.classList.toggle('done', item.done)
-          updateGoalLock()
-          emitState()
-        })
-
-        const span = document.createElement('span')
-        span.className = 'gobj-item-text'
-        span.textContent = item.text
-        span.title = item.text
-
-        const rm = document.createElement('button')
-        rm.className = 'gobj-remove-btn'
-        rm.textContent = '×'
-        rm.addEventListener('click', () => {
-          items.splice(i, 1)
-          render()
-          updateGoalLock()
-          emitState()
-        })
-
-        el.appendChild(chk)
-        el.appendChild(span)
-        el.appendChild(rm)
-        list.appendChild(el)
-      })
-    }
-
-    function add() {
-      const v = input.value.trim()
-      if (!v) return
-      items.push({ text: v, done: false })
-      input.value = ''
-      render()
-      updateGoalLock()
-      emitState()
-    }
-
-    addBtn.addEventListener('click', add)
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') add() })
-
-    section.appendChild(labelRow)
     section.appendChild(row)
-    section.appendChild(list)
-    render()
+
+    if (kind === 'short' && !currentState!.long.text) {
+      const hint = document.createElement('div')
+      hint.className = 'goalify-hint'
+      hint.textContent = 'Tip: setting a long-term goal first gives the short-term focus more to build on.'
+      section.appendChild(hint)
+    }
+
     return section
   }
 
-  // ── buildSpinner ──────────────────────────────────────────────────────────────
-  function buildSpinner(
-    labelFn:  (n: number) => string,
-    onChange: (n: number) => void
-  ): HTMLElement {
-    const wrap = document.createElement('div')
-    wrap.className = 'gobj-spinner-wrap'
+  function buildIntervalSection(): HTMLElement {
+    const section = document.createElement('div')
+    section.className = 'goalify-section'
 
-    const labelEl = document.createElement('div')
-    labelEl.className = 'gobj-spinner-label'
+    const title = document.createElement('div')
+    title.className = 'goalify-title'
+    title.textContent = 'Reminder frequency'
+    title.style.marginBottom = '8px'
+    section.appendChild(title)
 
-    const spinRow = document.createElement('div')
-    spinRow.className = 'gobj-spinner-row'
+    const row = document.createElement('div')
+    row.className = 'goalify-intervals'
 
-    const arrowCol = document.createElement('div')
-    arrowCol.className = 'gobj-arrow-col'
-    const upBtn   = document.createElement('button')
-    upBtn.className = 'gobj-arrow'; upBtn.textContent = '▲'
-    const downBtn = document.createElement('button')
-    downBtn.className = 'gobj-arrow'; downBtn.textContent = '▼'
-    arrowCol.appendChild(upBtn); arrowCol.appendChild(downBtn)
+    const longField = document.createElement('div')
+    longField.className = 'goalify-field'
+    const longLabel = document.createElement('label')
+    longLabel.textContent = 'Long-term, every N msgs'
+    const longInput = document.createElement('input')
+    longInput.type = 'number'
+    longInput.min = '1'
+    longInput.value = String(currentState!.longEvery)
+    longField.append(longLabel, longInput)
 
-    const box = document.createElement('div')
-    box.className = 'gobj-spinner-box'
-    const numInput = document.createElement('input')
-    numInput.className = 'gobj-spinner-num'
-    numInput.type = 'number'; numInput.value = '0'; numInput.min = '0'
-    const disabledTag = document.createElement('span')
-    disabledTag.className = 'gobj-disabled-tag'
-    disabledTag.textContent = 'Disabled'
-    box.appendChild(numInput); box.appendChild(disabledTag)
+    const shortField = document.createElement('div')
+    shortField.className = 'goalify-field'
+    const shortLabel = document.createElement('label')
+    shortLabel.textContent = 'Focus, every N msgs'
+    const shortInput = document.createElement('input')
+    shortInput.type = 'number'
+    shortInput.min = '1'
+    shortInput.value = String(currentState!.shortEvery)
+    shortField.append(shortLabel, shortInput)
 
-    spinRow.appendChild(arrowCol); spinRow.appendChild(box)
+    row.append(longField, shortField)
+    section.appendChild(row)
 
-    function update() {
-      let v = parseInt(numInput.value) || 0
-      if (v < 0) v = 0
-      numInput.value = String(v)
-      disabledTag.style.opacity = v === 0 ? '1' : '0'
-      labelEl.innerHTML = labelFn(v)
-      onChange(v)
-      emitState()
-    }
-
-    upBtn.addEventListener('click',   () => { numInput.value = String((parseInt(numInput.value) || 0) + 1); update() })
-    downBtn.addEventListener('click', () => { numInput.value = String(Math.max(0, (parseInt(numInput.value) || 0) - 1)); update() })
-    numInput.addEventListener('input', update)
-    update()
-
-    wrap.appendChild(labelEl)
-    wrap.appendChild(spinRow)
-    return wrap
-  }
-
-  // ── buildMemberSelector ───────────────────────────────────────────────────────
-  function buildMemberSelector(): HTMLElement {
-    const wrap = document.createElement('div')
-    wrap.className = 'gobj-member-wrap'
-
-    const label = document.createElement('div')
-    label.className = 'gobj-label'
-    label.textContent = 'Council Member'
-
-    const select = document.createElement('select')
-    select.className = 'gobj-select placeholder'
-
-    const placeholder = document.createElement('option')
-    placeholder.value = ''; placeholder.textContent = 'Loading characters…'
-    placeholder.disabled = true; placeholder.selected = true
-    select.appendChild(placeholder)
-
-    select.addEventListener('change', () => {
-      selectedMemberId = select.value
-      select.classList.toggle('placeholder', !selectedMemberId)
-      emitState()
+    const saveRow = document.createElement('div')
+    saveRow.className = 'goalify-row'
+    const saveBtn = document.createElement('button')
+    saveBtn.className = 'goalify-btn'
+    saveBtn.textContent = 'Save frequency'
+    saveBtn.addEventListener('click', () => {
+      if (!currentChatId) return
+      const longEvery = parseInt(longInput.value, 10) || currentState!.longEvery
+      const shortEvery = parseInt(shortInput.value, 10) || currentState!.shortEvery
+      send({ type: 'set_intervals', chatId: currentChatId, longEvery, shortEvery })
     })
+    saveRow.appendChild(saveBtn)
+    section.appendChild(saveRow)
 
-    // Request character list from backend
-    ctx.sendToBackend({ type: 'get_members' })
+    const hint = document.createElement('div')
+    hint.className = 'goalify-hint'
+    hint.textContent = 'Goals are reminded to the AI periodically rather than on every message. The focus goal is usually reminded more often than the long-term goal.'
+    section.appendChild(hint)
 
-    wrap.appendChild(label)
-    wrap.appendChild(select)
-
-    // Store ref so onBackendMessage can populate it
-    ;(wrap as any)._select = select
-    ;(wrap as any)._placeholder = placeholder
-
-    return wrap
+    return section
   }
 
-  // ── buildThinkingBox ──────────────────────────────────────────────────────────
-  function buildThinkingBox(): HTMLElement {
-    const wrap = document.createElement('div')
-    wrap.className = 'gobj-thinking-wrap'
-
-    const header = document.createElement('div')
-    header.className = 'gobj-thinking-header'
-
-    const label = document.createElement('div')
-    label.className = 'gobj-label'
-    label.textContent = 'Director'
-
-    const statusEl = document.createElement('span')
-    statusEl.className = 'gobj-thinking-status'
-    statusEl.textContent = 'idle'
-    thinkingStatusEl = statusEl
-
-    header.appendChild(label)
-    header.appendChild(statusEl)
-
-    const box = document.createElement('div')
-    box.className = 'gobj-thinking-box'
-    box.textContent = 'Output will appear here after the first trigger…'
-    thinkingBoxEl = box
-
-    wrap.appendChild(header)
-    wrap.appendChild(box)
-    return wrap
-  }
-
-  // ── Listen for messages from backend ─────────────────────────────────────────
-  let memberSelectEl: HTMLSelectElement | null  = null
-  let memberPlaceholderEl: HTMLOptionElement | null = null
-
-  const unsubBackend = ctx.onBackendMessage((payload: any) => {
-    switch (payload.type) {
-
-      // Populate the member selector with characters from backend
-      case 'members': {
-        if (!memberSelectEl || !memberPlaceholderEl) return
-        const members: Array<{ id: string; name: string }> = payload.members ?? []
-        memberPlaceholderEl.textContent = members.length ? 'Select a character…' : 'No characters found'
-        members.forEach(m => {
-          const opt = document.createElement('option')
-          opt.value = m.id
-          opt.textContent = m.name
-          memberSelectEl!.appendChild(opt)
-        })
-        break
-      }
-
-      // Thinking status update from backend
-      case 'gobj_thinking': {
-        if (!thinkingBoxEl || !thinkingStatusEl) return
-        switch (payload.status) {
-          case 'thinking':
-            thinkingBoxEl.textContent = 'Analyzing…'
-            thinkingBoxEl.className = 'gobj-thinking-box'
-            thinkingStatusEl.textContent = 'thinking'
-            thinkingStatusEl.className = 'gobj-thinking-status thinking'
-            break
-          case 'done':
-            thinkingBoxEl.textContent = payload.text ?? ''
-            thinkingBoxEl.className = 'gobj-thinking-box' + (payload.text ? ' has-content' : '')
-            thinkingStatusEl.textContent = 'done'
-            thinkingStatusEl.className = 'gobj-thinking-status'
-            break
-          case 'error':
-            thinkingBoxEl.textContent = payload.text ?? 'Error.'
-            thinkingBoxEl.className = 'gobj-thinking-box'
-            thinkingStatusEl.textContent = 'error'
-            thinkingStatusEl.className = 'gobj-thinking-status error'
-            break
-        }
-        break
-      }
+  const unsubBackend = ctx.onBackendMessage((raw: unknown) => {
+    const payload = raw as BackendMessage
+    if (payload.type === 'state') {
+      currentChatId = payload.chatId
+      currentState = payload.state
+      permissions = payload.permissions
+      render()
+    } else if (payload.type === 'busy') {
+      if (payload.chatId !== currentChatId) return
+      if (payload.which === 'long') longBusy = payload.busy
+      else shortBusy = payload.busy
+      render()
+    } else if (payload.type === 'error') {
+      // Surface via the badge/hint area is enough for a first pass; keep it non-intrusive.
+      // eslint-disable-next-line no-console
+      console.warn('[Goalify]', payload.message)
     }
   })
 
-  // ── Assemble UI ───────────────────────────────────────────────────────────────
-  const div = (cls: string) => Object.assign(document.createElement('div'), { className: cls })
+  const unsubActivate = tab.onActivate(() => {
+    send({ type: 'get_state' })
+  })
 
-  // Member selector — grab refs for population
-  const memberWrap = buildMemberSelector()
-  memberSelectEl      = (memberWrap as any)._select      as HTMLSelectElement
-  memberPlaceholderEl = (memberWrap as any)._placeholder as HTMLOptionElement
-  root.appendChild(memberWrap)
-
-  root.appendChild(div('gobj-divider'))
-
-  // Goals — with lock badge
-  const lockBadge = document.createElement('span')
-  lockBadge.className = 'gobj-lock-badge hidden'
-  lockBadge.title = 'All objectives must be completed first'
-  lockBadge.textContent = '🔒 locked'
-  goalLockBadge = lockBadge
-
-  root.appendChild(buildListSection('Goals', 'Add a goal…', goals, () => lockBadge))
-
-  root.appendChild(div('gobj-divider'))
-
-  root.appendChild(buildListSection('Objectives', 'Add an objective…', objectives))
-
-  root.appendChild(div('gobj-divider'))
-
-  root.appendChild(buildSpinner(
-    n => n === 0
-      ? 'Injecting <span>Goals</span> — Disabled'
-      : `Injecting <span>Goals</span> every <span>${n}</span> call${n === 1 ? '' : 's'}`,
-    n => { goalInterval = n }
-  ))
-
-  root.appendChild(buildSpinner(
-    n => n === 0
-      ? 'Injecting <span>Objectives</span> — Disabled'
-      : `Injecting <span>Objectives</span> every <span>${n}</span> call${n === 1 ? '' : 's'}`,
-    n => { objectiveInterval = n }
-  ))
-
-  root.appendChild(div('gobj-divider'))
-
-  root.appendChild(buildThinkingBox())
+  // Ask for the initial state right away too, in case the tab is already
+  // active when the extension loads (e.g. after a page refresh).
+  send({ type: 'get_state' })
 
   return () => {
     unsubBackend()
+    unsubActivate()
+    removeStyle()
     tab.destroy()
+    ctx.dom.cleanup()
   }
 }

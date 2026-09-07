@@ -1,13 +1,14 @@
 {
-  "version": "6.7.6.7",
-  "name": "goalify",
+  "version": "1.0.0",
+  "name": "Goalify",
   "identifier": "goalify",
   "author": "Guartis",
-  "github": "https://github.com/Guartis/goalify",
-  "homepage": "https://github.com/Guartis/goalify",
-  "description": "yadda yadda goals from ST but for Lumiverse wohooo",
-  "permissions": ["generation", "interceptor", "chats", "ui_panels"],
+  "github": "https://github.com/Guartis/Goalify",
+  "homepage": "https://github.com/Guartis/Goalify",
+  "description": "Tracks a long-term narrative goal and a short-term focus per chat, auto-generates them from context, and periodically reminds the AI to work toward them.",
+  "permissions": ["generation", "interceptor", "chats", "chat_mutation", "characters"],
   "entry_backend": "dist/backend.js",
   "entry_frontend": "dist/frontend.js",
-  "minimum_lumiverse_version": "0.1.0"
+  "minimum_lumiverse_version": "0.1.0",
+  "interceptorTimeoutMs": 10000
 }
